@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { GraduationCap, Lock, Mail, ArrowRight, Eye, EyeOff, Sparkles } from 'lucide-react';
+import { GraduationCap, Lock, Mail, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 
 function LoginForm() {
@@ -56,13 +56,6 @@ function LoginForm() {
     }
   };
 
-  // Quick autofill demo credentials
-  const fillDemoCredentials = () => {
-    setEmail('guru@sekolah.id');
-    setPassword('guru10jari');
-    setError('');
-  };
-
   return (
     <div className="flex-1 flex items-center justify-center p-4 py-12">
       <div className="w-full max-w-md bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur animate-in fade-in zoom-in-95 duration-200">
@@ -74,25 +67,6 @@ function LoginForm() {
           <p className="text-slate-400 text-xs sm:text-sm mt-1">
             Masuk untuk mengelola materi soal, kode program, dan memimpin Live Room.
           </p>
-        </div>
-
-        {/* Demo Account Quick Box */}
-        <div className="p-3.5 mb-5 rounded-2xl bg-slate-950/80 border border-purple-500/30 flex items-center justify-between gap-2">
-          <div className="text-xs">
-            <span className="font-bold text-purple-300 flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Akun Demo:
-            </span>
-            <div className="text-slate-400 font-mono text-[11px] mt-0.5">
-              guru@sekolah.id • guru10jari
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={fillDemoCredentials}
-            className="px-3 py-1.5 rounded-xl bg-purple-600/30 hover:bg-purple-600 text-purple-200 font-semibold text-xs border border-purple-500/40 transition-all hover:scale-105"
-          >
-            Gunakan Akun
-          </button>
         </div>
 
         {error && (
