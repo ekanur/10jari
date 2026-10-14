@@ -5,7 +5,7 @@ export async function POST(req: NextRequest, { params }: { params: { pin: string
   try {
     const pin = params.pin;
     const body = await req.json();
-    const { playerId, progress, currentWpm, netWpm, accuracy, completed } = body;
+    const { playerId, progress, currentWpm, netWpm, accuracy, completed, roundIndex } = body;
 
     const room = updateServerPlayerProgress(
       pin,
@@ -14,7 +14,8 @@ export async function POST(req: NextRequest, { params }: { params: { pin: string
       currentWpm,
       netWpm,
       accuracy,
-      completed
+      completed,
+      roundIndex
     );
 
     if (!room) {

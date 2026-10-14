@@ -69,6 +69,10 @@ export const RoundLeaderboard: React.FC<RoundLeaderboardProps> = ({
                     <span>{player.netWpm} Net WPM</span>
                     <span>•</span>
                     <span className="text-emerald-400">{player.accuracy}% Acc</span>
+                    <span>•</span>
+                    <span className={player.progress >= 100 ? 'text-emerald-400' : 'text-amber-400'}>
+                      {player.progress}% Teks
+                    </span>
                   </div>
                 </div>
               </div>

@@ -3,14 +3,146 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { RoomManager } from '@/lib/realtimeService';
-import { LiveRoom, PlayerAvatar, PlayerState } from '@/types';
+import { LiveRoom, PlayerAvatar } from '@/types';
 import { TypingDisplay } from '@/components/typing/TypingDisplay';
 import { useTypingEngine } from '@/hooks/useTypingEngine';
-import { RaceProgressTrack } from '@/components/room/RaceProgressTrack';
 import { RoundLeaderboard } from '@/components/room/RoundLeaderboard';
 import { FinalPodium } from '@/components/room/FinalPodium';
 import { AVATAR_MAP } from '@/components/ui/AvatarPicker';
-import { Users, Clock, Flame, Zap } from 'lucide-react';
+import { Users, Flame, Zap, Trophy } from 'lucide-react';
+
+interface StudentRaceScreenProps {
+  room: LiveRoom;
+  roundIndex: number;
+  playerId: string;
+  manager: RoomManager;
+}
+
+// Sub-komponen pengetikan siswa dengan isolasi state per ronde
+function StudentRaceScreen({ room, roundIndex, playerId, manager }: StudentRaceScreenProps) {
+  const currentRound = room.rounds[roundIndex] || room.rounds[0];
+  const targetText = currentRound?.text || '';
+
+  const { input, stats, currentIndex } = useTypingEngine({
+    targetText,
+    enableSound: true,
+  });
+
+  // Hitung peringkat live siswa terhadap seluruh peserta dalam room
+  const playerList = Object.values(room.players);
+  const totalPlayers = playerList.length;
+
+  const sortedPlayers = useMemo(() => {
+    return [...playerList].sort((a, b) => {
+      if (a.completed && !b.completed) return -1;
+      if (!a.completed && b.completed) return 1;
+      if (b.progress !== a.progress) return b.progress - a.progress;
+      return (b.netWpm || 0) - (a.netWpm || 0);
+    });
+  }, [playerList]);
+
+  const myRankIndex = sortedPlayers.findIndex((p) => p.id === playerId);
+  const myRank = myRankIndex !== -1 ? myRankIndex + 1 : 1;
+
+  const progressPercentage =
+    targetText.length > 0 ? Math.min(100, Math.round((input.length / targetText.length) * 100)) : 0;
+  const isFinished = input.length >= targetText.length && targetText.length > 0;
+
+  // Broadcast progress mengetik siswa secara berkala ke server
+  useEffect(() => {
+    if (!manager || !playerId || room.status !== 'in-progress') return;
+
+    manager.updatePlayerProgress(
+      playerId,
+      progressPercentage,
+      stats.wpm,
+      stats.netWpm,
+      stats.accuracy,
+      isFinished,
+      roundIndex
+    );
+  }, [manager, playerId, progressPercentage, stats.wpm, stats.netWpm, stats.accuracy, isFinished, roundIndex, room.status]);
+
+  // Styling badge ranking
+  let rankColor = 'bg-slate-800 text-slate-300 border-slate-700';
+  let rankLabel = `Peringkat #${myRank}`;
+  if (myRank === 1) {
+    rankColor = 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-amber-500/10';
+    rankLabel = `🥇 Juara 1`;
+  } else if (myRank === 2) {
+    rankColor = 'bg-slate-300/20 text-slate-200 border-slate-300/40';
+    rankLabel = `🥈 Juara 2`;
+  } else if (myRank === 3) {
+    rankColor = 'bg-amber-700/20 text-orange-300 border-amber-700/40';
+    rankLabel = `🥉 Juara 3`;
+  }
+
+  return (
+    <div className="flex-1 flex flex-col items-center max-w-5xl w-full mx-auto px-4 py-6 gap-6">
+      {/* HUD Bersih Sisi Siswa: Peringkat, WPM, Akurasi, Info Ronde */}
+      <div className="w-full bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xl backdrop-blur flex flex-col sm:flex-row items-center justify-between gap-4">
+        {/* Peringkat Siswa dari Total Peserta */}
+        <div className="flex items-center gap-3">
+          <div className={`flex items-center gap-2 px-4 py-2 rounded-xl border font-black text-sm sm:text-base shadow-sm ${rankColor}`}>
+            <Trophy className="w-4 h-4" />
+            <span>{rankLabel}</span>
+            <span className="text-xs font-normal opacity-80">dari {totalPlayers} Siswa</span>
+          </div>
+        </div>
+
+        {/* Kecepatan & Akurasi */}
+        <div className="flex items-center gap-6 font-mono">
+          <div className="flex items-center gap-2">
+            <Zap className="w-4 h-4 text-amber-400" />
+            <span className="text-amber-400 font-bold text-xl">{stats.netWpm}</span>
+            <span className="text-slate-500 text-xs uppercase tracking-wider font-sans">Net WPM</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Flame className="w-4 h-4 text-emerald-400" />
+            <span className="text-emerald-400 font-bold text-xl">{stats.accuracy}%</span>
+            <span className="text-slate-500 text-xs uppercase tracking-wider font-sans">Akurasi</span>
+          </div>
+        </div>
+
+        {/* Info Ronde */}
+        <div className="text-xs text-slate-400 font-medium bg-slate-800/80 px-3.5 py-1.5 rounded-xl border border-slate-700">
+          Ronde {roundIndex + 1} dari {room.rounds.length}
+        </div>
+      </div>
+
+      {/* Baris Progres Personal Siswa Sendiri (Bukan Leaderboard Lawan) */}
+      <div className="w-full bg-slate-900/60 border border-slate-800/80 rounded-2xl p-3 px-4 shadow-sm flex flex-col gap-1.5">
+        <div className="flex items-center justify-between text-xs font-semibold text-slate-400">
+          <span>Progres Pengetikan Anda</span>
+          <span className="font-mono text-purple-400">{progressPercentage}%</span>
+        </div>
+        <div className="w-full h-2.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
+          <div
+            className="h-full bg-gradient-to-r from-purple-600 via-indigo-500 to-emerald-400 rounded-full transition-all duration-200"
+            style={{ width: `${progressPercentage}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Area Mengetik Monkeytype */}
+      <div className="w-full">
+        <TypingDisplay
+          targetText={targetText}
+          input={input}
+          currentIndex={currentIndex}
+          isCode={currentRound?.isCode}
+        />
+      </div>
+
+      {isFinished && (
+        <div className="p-4 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-bold text-sm text-center animate-bounce shadow-lg shadow-emerald-500/10">
+          🎉 Hebat! Anda telah menyelesaikan teks ronde ini. Menunggu seluruh peserta selesai dan guru membuka papan skor...
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function PlayRoomPage() {
   const params = useParams();
@@ -67,51 +199,6 @@ export default function PlayRoomPage() {
       };
     }
   }, [pin, router]);
-
-  // Target text untuk ronde aktif
-  const currentRound = useMemo(() => {
-    if (room && room.rounds && room.rounds.length > 0) {
-      return room.rounds[room.currentRoundIndex] || room.rounds[0];
-    }
-    // Fallback jika data ronde belum tiba
-    return {
-      roundNumber: 1,
-      title: 'Latihan 10 Jari: Home Row Dasar',
-      text: 'asdf jkl; asdf jkl; fads jads klas lada jala fasal fajar salak salsa daska',
-      isCode: false,
-    };
-  }, [room]);
-
-  const targetText = currentRound?.text || '';
-
-  const { input, stats, currentIndex, reset } = useTypingEngine({
-    targetText,
-    enableSound: true,
-  });
-
-  // Reset engine ketika ronde berubah
-  useEffect(() => {
-    if (room?.status === 'countdown' || room?.status === 'in-progress') {
-      reset();
-    }
-  }, [room?.currentRoundIndex, room?.status]);
-
-  // Broadcast progress mengetik secara berkala ke room
-  useEffect(() => {
-    if (!managerRef.current || !playerId || room?.status !== 'in-progress') return;
-
-    const progressPercentage = targetText.length > 0 ? Math.round((input.length / targetText.length) * 100) : 0;
-    const isFinished = input.length >= targetText.length && targetText.length > 0;
-
-    managerRef.current.updatePlayerProgress(
-      playerId,
-      progressPercentage,
-      stats.wpm,
-      stats.netWpm,
-      stats.accuracy,
-      isFinished
-    );
-  }, [input.length, stats.wpm, stats.netWpm, stats.accuracy, playerId, targetText.length, room?.status]);
 
   if (!room) {
     return (
@@ -172,6 +259,8 @@ export default function PlayRoomPage() {
     );
   }
 
+  const currentRound = room.rounds[room.currentRoundIndex] || room.rounds[0];
+
   // --- 2. TAMPILAN COUNTDOWN (3, 2, 1) ---
   if (room.status === 'countdown') {
     return (
@@ -192,51 +281,16 @@ export default function PlayRoomPage() {
     );
   }
 
-  // --- 3. TAMPILAN SESI LIVE BALAPAN MENGETIK (MINIMALIST MONKEYTYPE) ---
-  if (room.status === 'in-progress') {
+  // --- 3. TAMPILAN SESI LIVE BALAPAN MENGETIK (STATE TERISOLASI PER RONDE) ---
+  if (room.status === 'in-progress' && managerRef.current) {
     return (
-      <div className="flex-1 flex flex-col items-center max-w-5xl w-full mx-auto px-4 py-6 gap-6">
-        {/* Race Track Real-time di bagian atas */}
-        <div className="w-full">
-          <RaceProgressTrack players={room.players} currentUserId={playerId} />
-        </div>
-
-        {/* Live HUD (WPM, Akurasi, Info Ronde) */}
-        <div className="flex items-center justify-between w-full px-6 py-2.5 bg-slate-900/80 rounded-2xl border border-slate-800 shadow-md">
-          <div className="flex items-center gap-6 font-mono text-sm">
-            <div className="flex items-center gap-2">
-              <Zap className="w-4 h-4 text-amber-400" />
-              <span className="text-amber-400 font-bold text-lg">{stats.netWpm}</span>
-              <span className="text-slate-500 text-xs">Net WPM</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Flame className="w-4 h-4 text-emerald-400" />
-              <span className="text-emerald-400 font-bold text-lg">{stats.accuracy}%</span>
-              <span className="text-slate-500 text-xs">Acc</span>
-            </div>
-          </div>
-
-          <div className="text-xs text-slate-400 font-medium">
-            Ronde {room.currentRoundIndex + 1} dari {room.rounds.length}
-          </div>
-        </div>
-
-        {/* Minimalist Monkeytype Typing Area (Tanpa keyboard virtual sesuai /grill-me) */}
-        <div className="w-full">
-          <TypingDisplay
-            targetText={targetText}
-            input={input}
-            currentIndex={currentIndex}
-            isCode={currentRound?.isCode}
-          />
-        </div>
-
-        {input.length >= targetText.length && targetText.length > 0 && (
-          <div className="p-4 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-bold text-sm text-center animate-bounce">
-            🎉 Hebat! Anda telah menyelesaikan teks ronde ini. Menunggu seluruh peserta selesai...
-          </div>
-        )}
-      </div>
+      <StudentRaceScreen
+        key={`${room.pin}-${room.currentRoundIndex}`}
+        room={room}
+        roundIndex={room.currentRoundIndex}
+        playerId={playerId}
+        manager={managerRef.current}
+      />
     );
   }
 

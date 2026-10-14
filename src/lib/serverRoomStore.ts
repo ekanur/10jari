@@ -161,6 +161,32 @@ export function updateServerPlayer(pin: string, player: PlayerState): LiveRoom |
   return room;
 }
 
+export function getActiveServerRooms(): LiveRoom[] {
+  const rooms = readAllRooms();
+  const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+  return Object.values(rooms)
+    .filter((r) => r.createdAt > oneDayAgo && r.status !== 'podium')
+    .sort((a, b) => b.createdAt - a.createdAt);
+}
+
+export function deleteServerRoom(pin: string): boolean {
+  const rooms = readAllRooms();
+  if (!rooms[pin]) return false;
+  delete rooms[pin];
+  writeAllRooms(rooms);
+
+  const clients = clientsMap.get(pin) || [];
+  clients.forEach((c) => {
+    try {
+      c.controller.close();
+    } catch {
+      // ignore
+    }
+  });
+  clientsMap.delete(pin);
+  return true;
+}
+
 export function updateServerPlayerProgress(
   pin: string,
   playerId: string,
@@ -168,11 +194,17 @@ export function updateServerPlayerProgress(
   currentWpm: number,
   netWpm: number,
   accuracy: number,
-  completed: boolean
+  completed: boolean,
+  roundIndex?: number
 ): LiveRoom | null {
   const rooms = readAllRooms();
   const room = rooms[pin];
   if (!room) return null;
+
+  // Abaikan pembaruan paket yang tertunda jika berasal dari ronde lama
+  if (typeof roundIndex === 'number' && roundIndex !== room.currentRoundIndex) {
+    return room;
+  }
 
   if (room.players[playerId]) {
     room.players[playerId].progress = progress;
@@ -182,7 +214,7 @@ export function updateServerPlayerProgress(
     room.players[playerId].completed = completed;
 
     if (completed) {
-      const roundScore = Math.round(netWpm * 10 * (accuracy / 100));
+      const roundScore = Math.round(netWpm * 10 * (accuracy / 100) * (progress / 100));
       room.players[playerId].score = (room.players[playerId].score || 0) + roundScore;
     }
 
@@ -199,6 +231,21 @@ export function updateServerRoomStatus(pin: string, status: RoomStatus): LiveRoo
   if (!room) return null;
 
   room.status = status;
+
+  // Jika ronde diakhiri guru, berikan skor proporsional bagi siswa yang belum selesai namun telah mengetik
+  if (status === 'round-ended') {
+    Object.keys(room.players).forEach((id) => {
+      const player = room.players[id];
+      if (!player.completed && player.progress > 0) {
+        const partialScore = Math.round(
+          (player.netWpm || 0) * 10 * ((player.accuracy || 100) / 100) * ((player.progress || 0) / 100)
+        );
+        player.score = (player.score || 0) + partialScore;
+        player.completed = true;
+      }
+    });
+  }
+
   writeAllRooms(rooms);
   broadcastRoomUpdate(pin, room);
   return room;
@@ -216,6 +263,8 @@ export function advanceServerNextRound(pin: string): LiveRoom | null {
       room.players[id].progress = 0;
       room.players[id].completed = false;
       room.players[id].currentWpm = 0;
+      room.players[id].netWpm = 0;
+      room.players[id].accuracy = 100;
     });
   } else {
     room.status = 'podium';

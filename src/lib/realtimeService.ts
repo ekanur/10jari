@@ -146,7 +146,8 @@ export class RoomManager {
     currentWpm: number,
     netWpm: number,
     accuracy: number,
-    completed: boolean
+    completed: boolean,
+    roundIndex?: number
   ): Promise<void> {
     // 1. Optimistic local update
     const room = this.getRoom();
@@ -157,7 +158,7 @@ export class RoomManager {
       room.players[playerId].accuracy = accuracy;
       room.players[playerId].completed = completed;
       if (completed) {
-        const roundScore = Math.round(netWpm * 10 * (accuracy / 100));
+        const roundScore = Math.round(netWpm * 10 * (accuracy / 100) * (progress / 100));
         room.players[playerId].score = (room.players[playerId].score || 0) + roundScore;
       }
       this.updateLocalRoom(room);
@@ -168,7 +169,7 @@ export class RoomManager {
       await fetch(`/api/rooms/${this.pin}/progress`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerId, progress, currentWpm, netWpm, accuracy, completed }),
+        body: JSON.stringify({ playerId, progress, currentWpm, netWpm, accuracy, completed, roundIndex }),
       });
     } catch {
       // ignore

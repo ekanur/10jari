@@ -5,24 +5,53 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { DEFAULT_QUIZ_BANK, getCustomQuizzes, deleteCustomQuiz } from '@/lib/quizBank';
 import { createLiveRoom } from '@/lib/realtimeService';
-import { QuizItem, QuizRound } from '@/types';
+import { QuizItem, QuizRound, LiveRoom } from '@/types';
 import { useTeacherAuth } from '@/hooks/useTeacherAuth';
-import { GraduationCap, Plus, Play, Trash2, Code2, BookOpen, Layers, CheckCircle2, LogOut, User } from 'lucide-react';
+import { GraduationCap, Plus, Play, Trash2, Code2, BookOpen, Layers, CheckCircle2, LogOut, User, Radio, Users, ArrowRight } from 'lucide-react';
 
 export default function TeacherDashboardPage() {
   const router = useRouter();
   const { teacher, logout } = useTeacherAuth();
   const [customQuizzes, setCustomQuizzes] = useState<QuizItem[]>([]);
   const [activeTab, setActiveTab] = useState<'custom' | 'default'>('custom');
+  const [activeRooms, setActiveRooms] = useState<LiveRoom[]>([]);
+
+  const fetchActiveRooms = async () => {
+    try {
+      const res = await fetch('/api/rooms');
+      const data = await res.json();
+      if (data.success && data.rooms) {
+        setActiveRooms(data.rooms);
+      }
+    } catch {
+      // ignore
+    }
+  };
 
   useEffect(() => {
     setCustomQuizzes(getCustomQuizzes());
+    fetchActiveRooms();
+
+    // Polling berkala setiap 4 detik untuk update room aktif
+    const interval = setInterval(fetchActiveRooms, 4000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleDelete = (id: string) => {
     if (confirm('Yakin ingin menghapus kuis ini?')) {
       deleteCustomQuiz(id);
       setCustomQuizzes(getCustomQuizzes());
+    }
+  };
+
+  const handleCloseRoom = async (pin: string) => {
+    if (confirm(`Yakin ingin menutup dan menghapus sesi Room #${pin}?`)) {
+      try {
+        await fetch(`/api/rooms/${pin}`, { method: 'DELETE' });
+        fetchActiveRooms();
+      } catch {
+        // ignore
+      }
     }
   };
 
@@ -115,6 +144,91 @@ export default function TeacherDashboardPage() {
           </button>
         </div>
       </div>
+
+      {/* Active Rooms Menu / Banner */}
+      {activeRooms.length > 0 && (
+        <div className="my-6 p-5 rounded-3xl bg-slate-900/90 border border-purple-500/30 shadow-2xl backdrop-blur animate-in fade-in duration-300">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
+              </span>
+              <h2 className="text-base font-bold text-white flex items-center gap-2">
+                <Radio className="w-4 h-4 text-emerald-400" />
+                Room Aktif Sedang Berlangsung ({activeRooms.length})
+              </h2>
+            </div>
+            <span className="text-xs text-slate-400 hidden sm:inline">Pendidik dapat langsung kembali memimpin room</span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 mt-4">
+            {activeRooms.map((r) => {
+              const playerCount = Object.keys(r.players || {}).length;
+              let statusText = 'Di Lobby';
+              let statusBg = 'bg-slate-800 text-slate-300 border-slate-700';
+
+              if (r.status === 'in-progress') {
+                statusText = 'Sedang Balapan';
+                statusBg = 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40';
+              } else if (r.status === 'countdown') {
+                statusText = 'Hitung Mundur';
+                statusBg = 'bg-amber-500/20 text-amber-400 border-amber-500/40';
+              } else if (r.status === 'round-ended') {
+                statusText = 'Akhir Ronde';
+                statusBg = 'bg-purple-500/20 text-purple-400 border-purple-500/40';
+              }
+
+              return (
+                <div
+                  key={r.pin}
+                  className="flex flex-col justify-between p-4 rounded-2xl bg-slate-950/70 border border-slate-800 hover:border-slate-700 transition-all shadow-md"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-mono text-base font-black text-amber-400 tracking-wider bg-slate-900 px-2.5 py-0.5 rounded-lg border border-amber-500/30">
+                          #{r.pin}
+                        </span>
+                        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-md border ${statusBg}`}>
+                          {statusText}
+                        </span>
+                      </div>
+                      <h3 className="font-bold text-white text-sm line-clamp-1">{r.title}</h3>
+                      <div className="flex items-center gap-3 text-xs text-slate-400 mt-1">
+                        <span className="flex items-center gap-1">
+                          <Users className="w-3.5 h-3.5 text-indigo-400" />
+                          {playerCount} Siswa
+                        </span>
+                        <span>•</span>
+                        <span>Ronde {r.currentRoundIndex + 1} dari {r.rounds.length}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-3 mt-3 border-t border-slate-800/80">
+                    <button
+                      onClick={() => handleCloseRoom(r.pin)}
+                      className="text-slate-500 hover:text-rose-400 text-xs font-semibold px-2 py-1 rounded-lg hover:bg-rose-500/10 transition-colors"
+                      title="Tutup Sesi Room"
+                    >
+                      Tutup Room
+                    </button>
+
+                    <Link
+                      href={`/teacher/host/${r.pin}`}
+                      className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-md shadow-purple-600/30 transition-all hover:scale-105"
+                    >
+                      <span>Buka Layar Host</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Tabs Switcher */}
       <div className="flex items-center gap-3 my-6">

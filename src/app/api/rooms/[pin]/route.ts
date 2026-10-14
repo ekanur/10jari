@@ -4,6 +4,7 @@ import {
   updateServerPlayer,
   updateServerRoomStatus,
   advanceServerNextRound,
+  deleteServerRoom,
 } from '@/lib/serverRoomStore';
 
 export async function GET(req: NextRequest, { params }: { params: { pin: string } }) {
@@ -40,5 +41,18 @@ export async function POST(req: NextRequest, { params }: { params: { pin: string
     return NextResponse.json({ success: true, room: updatedRoom });
   } catch (error) {
     return NextResponse.json({ success: false, error: 'Gagal memperbarui room' }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest, { params }: { params: { pin: string } }) {
+  try {
+    const pin = params.pin;
+    const deleted = deleteServerRoom(pin);
+    if (!deleted) {
+      return NextResponse.json({ success: false, error: 'Room tidak ditemukan' }, { status: 404 });
+    }
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: 'Gagal menghapus room' }, { status: 500 });
   }
 }

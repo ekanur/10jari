@@ -77,12 +77,12 @@ export default function TeacherHostPage() {
   };
 
   // Lanjut ke ronde berikutnya
-  const handleNextRound = () => {
+  const handleNextRound = async () => {
     if (!managerRef.current || !room) return;
     if (isFinalRound) {
-      managerRef.current.setRoomStatus('podium');
+      await managerRef.current.setRoomStatus('podium');
     } else {
-      managerRef.current.nextRound();
+      await managerRef.current.nextRound();
       // Countdown 3 detik otomatis untuk ronde baru
       setTimeout(() => {
         if (managerRef.current) {
