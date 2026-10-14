@@ -150,6 +150,20 @@ export default function PlayRoomPage() {
     );
   }
 
+  // Countdown ticker lokal (3, 2, 1)
+  const [countdownVal, setCountdownVal] = useState(3);
+  useEffect(() => {
+    if (room?.status === 'countdown') {
+      setCountdownVal(3);
+      const t1 = setTimeout(() => setCountdownVal(2), 1000);
+      const t2 = setTimeout(() => setCountdownVal(1), 2000);
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+      };
+    }
+  }, [room?.status, room?.currentRoundIndex]);
+
   // --- 2. TAMPILAN COUNTDOWN (3, 2, 1) ---
   if (room.status === 'countdown') {
     return (
@@ -158,8 +172,8 @@ export default function PlayRoomPage() {
           <span className="text-xs font-bold uppercase tracking-widest text-amber-400">
             Bersiap di Keyboard!
           </span>
-          <div className="text-8xl sm:text-9xl font-black text-transparent bg-clip-text bg-gradient-to-b from-amber-300 via-amber-500 to-yellow-600 my-4 animate-pulse">
-            3
+          <div className="text-8xl sm:text-9xl font-black text-transparent bg-clip-text bg-gradient-to-b from-amber-300 via-amber-500 to-yellow-600 my-4 animate-bounce">
+            {countdownVal}
           </div>
           <h2 className="text-xl font-bold text-white">
             Ronde {room.currentRoundIndex + 1}: {currentRound?.title}

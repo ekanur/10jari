@@ -99,14 +99,26 @@ const FINGER_STYLES: Record<KeyHandFinger, { bg: string; text: string; label: st
   'right-pinky': { bg: 'border-rose-500/40 text-rose-400', text: 'text-rose-400', label: 'Kelingking Kanan' },
 };
 
-function getFingerForChar(char: string): { finger: KeyHandFinger; keyDisplay: string } | null {
+const SHIFT_SYMBOL_MAP: Record<string, string> = {
+  '!': '1', '@': '2', '#': '3', '$': '4', '%': '5', '^': '6', '&': '7', '*': '8', '(': '9', ')': '0',
+  '_': '-', '+': '=', '{': '[', '}': ']', '|': '\\', ':': ';', '"': "'", '<': ',', '>': '.', '?': '/',
+  '~': '`',
+};
+
+function getFingerForChar(char: string): { finger: KeyHandFinger; keyDisplay: string; isShift?: boolean } | null {
   if (!char) return null;
-  const lower = char.toLowerCase();
+  const isShiftSymbol = Boolean(SHIFT_SYMBOL_MAP[char]);
+  const isUpperAlpha = /^[A-Z]$/.test(char);
+  const baseChar = SHIFT_SYMBOL_MAP[char] || char.toLowerCase();
 
   for (const row of KEYBOARD_ROWS) {
     for (const item of row) {
-      if (item.key.toLowerCase() === lower || (char === ' ' && item.key === ' ') || (char === '\n' && item.key === 'Enter')) {
-        return { finger: item.finger, keyDisplay: item.display };
+      if (item.key.toLowerCase() === baseChar || (char === ' ' && item.key === ' ') || (char === '\n' && item.key === 'Enter')) {
+        return {
+          finger: item.finger,
+          keyDisplay: item.display,
+          isShift: isShiftSymbol || isUpperAlpha,
+        };
       }
     }
   }
@@ -115,7 +127,7 @@ function getFingerForChar(char: string): { finger: KeyHandFinger; keyDisplay: st
 
 export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({ currentChar }) => {
   const currentTarget = getFingerForChar(currentChar);
-  const activeCharLower = currentChar === '\n' ? 'enter' : currentChar.toLowerCase();
+  const baseTargetChar = SHIFT_SYMBOL_MAP[currentChar] || (currentChar === '\n' ? 'enter' : currentChar.toLowerCase());
 
   return (
     <div className="flex flex-col items-center gap-3 w-full max-w-4xl mx-auto p-4 md:p-6 bg-slate-900/90 rounded-2xl border border-slate-800 shadow-xl backdrop-blur">
@@ -142,10 +154,12 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({ currentChar })
         {KEYBOARD_ROWS.map((row, rIdx) => (
           <div key={rIdx} className="flex gap-1.5 justify-center w-full">
             {row.map((k) => {
+              const isShiftKey = k.key === 'Shift' && Boolean(currentTarget?.isShift);
               const isMatch =
-                k.key.toLowerCase() === activeCharLower ||
+                k.key.toLowerCase() === baseTargetChar ||
                 (currentChar === ' ' && k.key === ' ') ||
-                (currentChar === '\n' && k.key === 'Enter');
+                (currentChar === '\n' && k.key === 'Enter') ||
+                isShiftKey;
 
               const fingerStyle = FINGER_STYLES[k.finger];
               const isHomeBar = k.key === 'f' || k.key === 'j';

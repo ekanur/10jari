@@ -102,6 +102,11 @@ export function useTypingEngine({ targetText, onComplete, enableSound = true }: 
     // Ignore meta keys, functions keys, Tab, etc.
     if (e.ctrlKey || e.altKey || e.metaKey || isCompleted) return;
 
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      return;
+    }
+
     if (e.key === 'Backspace') {
       e.preventDefault();
       setInput((prev) => prev.slice(0, -1));

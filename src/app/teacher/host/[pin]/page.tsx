@@ -17,7 +17,20 @@ export default function TeacherHostPage() {
 
   const [room, setRoom] = useState<LiveRoom | null>(null);
   const [copied, setCopied] = useState(false);
+  const [countdownVal, setCountdownVal] = useState(3);
   const managerRef = useRef<RoomManager | null>(null);
+
+  useEffect(() => {
+    if (room?.status === 'countdown') {
+      setCountdownVal(3);
+      const t1 = setTimeout(() => setCountdownVal(2), 1000);
+      const t2 = setTimeout(() => setCountdownVal(1), 2000);
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+      };
+    }
+  }, [room?.status, room?.currentRoundIndex]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -65,8 +78,18 @@ export default function TeacherHostPage() {
 
   // Lanjut ke ronde berikutnya
   const handleNextRound = () => {
-    if (!managerRef.current) return;
-    managerRef.current.nextRound();
+    if (!managerRef.current || !room) return;
+    if (isFinalRound) {
+      managerRef.current.setRoomStatus('podium');
+    } else {
+      managerRef.current.nextRound();
+      // Countdown 3 detik otomatis untuk ronde baru
+      setTimeout(() => {
+        if (managerRef.current) {
+          managerRef.current.setRoomStatus('in-progress');
+        }
+      }, 3000);
+    }
   };
 
   if (!room) {
@@ -170,7 +193,7 @@ export default function TeacherHostPage() {
             Kuis Dimulai Dalam:
           </span>
           <div className="text-9xl font-black text-amber-400 my-4 animate-bounce">
-            3
+            {countdownVal}
           </div>
           <h3 className="text-xl font-bold text-white">
             {currentRound?.title}
