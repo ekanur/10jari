@@ -6,10 +6,12 @@ import { useRouter } from 'next/navigation';
 import { DEFAULT_QUIZ_BANK, getCustomQuizzes, deleteCustomQuiz } from '@/lib/quizBank';
 import { createLiveRoom } from '@/lib/realtimeService';
 import { QuizItem, QuizRound } from '@/types';
-import { GraduationCap, Plus, Play, Trash2, Code2, BookOpen, Layers, CheckCircle2 } from 'lucide-react';
+import { useTeacherAuth } from '@/hooks/useTeacherAuth';
+import { GraduationCap, Plus, Play, Trash2, Code2, BookOpen, Layers, CheckCircle2, LogOut, User } from 'lucide-react';
 
 export default function TeacherDashboardPage() {
   const router = useRouter();
+  const { teacher, logout } = useTeacherAuth();
   const [customQuizzes, setCustomQuizzes] = useState<QuizItem[]>([]);
   const [activeTab, setActiveTab] = useState<'custom' | 'default'>('custom');
 
@@ -69,8 +71,16 @@ export default function TeacherDashboardPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-slate-800">
         <div>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/10 text-purple-400 text-xs font-semibold border border-purple-500/20 mb-1">
-            <GraduationCap className="w-4 h-4" /> Portal Pendidik
+          <div className="flex items-center gap-2 mb-1">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/10 text-purple-400 text-xs font-semibold border border-purple-500/20">
+              <GraduationCap className="w-4 h-4" /> Portal Pendidik
+            </div>
+            {teacher && (
+              <span className="flex items-center gap-1.5 text-xs text-slate-300 px-3 py-1 rounded-full bg-slate-800/80 border border-slate-700">
+                <User className="w-3.5 h-3.5 text-purple-400" />
+                {teacher.name}
+              </span>
+            )}
           </div>
           <h1 className="text-3xl font-extrabold text-white">Dashboard Guru</h1>
           <p className="text-slate-400 text-sm mt-1">
@@ -78,22 +88,31 @@ export default function TeacherDashboardPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <button
             onClick={handleStartMultiRoundRoom}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-bold text-xs sm:text-sm shadow-lg shadow-amber-500/20 transition-all hover:scale-105"
+            className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-bold text-xs shadow-lg shadow-amber-500/20 transition-all hover:scale-105"
           >
             <Play className="w-4 h-4 fill-slate-950" />
-            Luncurkan Turnamen 3 Ronde
+            Luncurkan 3 Ronde
           </button>
 
           <Link
             href="/teacher/editor"
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-purple-600/30 transition-all hover:scale-105"
+            className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-lg shadow-purple-600/30 transition-all hover:scale-105"
           >
             <Plus className="w-4 h-4" />
-            Buat Soal / Kode Baru
+            Buat Soal
           </Link>
+
+          <button
+            onClick={logout}
+            className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-rose-950/40 text-slate-400 hover:text-rose-400 font-semibold text-xs border border-slate-700 hover:border-rose-500/40 transition-all"
+            title="Keluar dari Portal Guru"
+          >
+            <LogOut className="w-4 h-4" />
+            <span className="hidden sm:inline">Keluar</span>
+          </button>
         </div>
       </div>
 
