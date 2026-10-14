@@ -21,8 +21,22 @@ export default function PlayRoomPage() {
   const [playerId, setPlayerId] = useState<string>('');
   const [playerName, setPlayerName] = useState<string>('');
   const [playerAvatar, setPlayerAvatar] = useState<PlayerAvatar>('fox');
+  const [countdownVal, setCountdownVal] = useState<number>(3);
 
   const managerRef = useRef<RoomManager | null>(null);
+
+  // Countdown ticker lokal (3, 2, 1) - wajib ditaruh di level teratas sebelum return kondisional
+  useEffect(() => {
+    if (room?.status === 'countdown') {
+      setCountdownVal(3);
+      const t1 = setTimeout(() => setCountdownVal(2), 1000);
+      const t2 = setTimeout(() => setCountdownVal(1), 2000);
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+      };
+    }
+  }, [room?.status, room?.currentRoundIndex]);
 
   // Ambil data identitas player dari sessionStorage
   useEffect(() => {
@@ -149,20 +163,6 @@ export default function PlayRoomPage() {
       </div>
     );
   }
-
-  // Countdown ticker lokal (3, 2, 1)
-  const [countdownVal, setCountdownVal] = useState(3);
-  useEffect(() => {
-    if (room?.status === 'countdown') {
-      setCountdownVal(3);
-      const t1 = setTimeout(() => setCountdownVal(2), 1000);
-      const t2 = setTimeout(() => setCountdownVal(1), 2000);
-      return () => {
-        clearTimeout(t1);
-        clearTimeout(t2);
-      };
-    }
-  }, [room?.status, room?.currentRoundIndex]);
 
   // --- 2. TAMPILAN COUNTDOWN (3, 2, 1) ---
   if (room.status === 'countdown') {
