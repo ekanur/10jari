@@ -25,7 +25,7 @@ export default function TeacherDashboardPage() {
   };
 
   // Mulai Live Room dari 1 atau beberapa kuis terpilih
-  const handleStartRoom = (quiz: QuizItem) => {
+  const handleStartRoom = async (quiz: QuizItem) => {
     const rounds: QuizRound[] = [
       {
         roundNumber: 1,
@@ -35,12 +35,12 @@ export default function TeacherDashboardPage() {
       },
     ];
 
-    const newRoom = createLiveRoom(quiz.title, 'Guru Kelas', rounds);
+    const newRoom = await createLiveRoom(quiz.title, 'Guru Kelas', rounds);
     router.push(`/teacher/host/${newRoom.pin}`);
   };
 
   // Buat Live Room multi-ronde gabungan
-  const handleStartMultiRoundRoom = () => {
+  const handleStartMultiRoundRoom = async () => {
     const rounds: QuizRound[] = [
       {
         roundNumber: 1,
@@ -60,7 +60,7 @@ export default function TeacherDashboardPage() {
       },
     ];
 
-    const newRoom = createLiveRoom('Turnamen 10 Jari Kelas (3 Ronde)', 'Guru Kelas', rounds);
+    const newRoom = await createLiveRoom('Turnamen 10 Jari Kelas (3 Ronde)', 'Guru Kelas', rounds);
     router.push(`/teacher/host/${newRoom.pin}`);
   };
 

@@ -13,8 +13,9 @@ export default function JoinPage() {
   const [name, setName] = useState('');
   const [avatar, setAvatar] = useState<PlayerAvatar>('fox');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleJoin = (e: React.FormEvent) => {
+  const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -31,39 +32,64 @@ export default function JoinPage() {
       return;
     }
 
-    // Periksa apakah room ada
-    const manager = new RoomManager(cleanPin);
-    const room = manager.getRoom();
+    setLoading(true);
 
-    if (!room) {
-      setError('Room tidak ditemukan. Pastikan kode PIN sudah benar dan Guru sudah membuka room.');
-      return;
+    try {
+      // 1. Cek ketersediaan room di server (berfungsi antar beda browser & beda perangkat)
+      let room = null;
+      try {
+        const res = await fetch(`/api/rooms/${cleanPin}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.room) {
+            room = data.room;
+          }
+        }
+      } catch {
+        // fallback
+      }
+
+      // 2. Coba fallback lokal jika offline
+      if (!room) {
+        const manager = new RoomManager(cleanPin);
+        room = manager.getRoom();
+      }
+
+      if (!room) {
+        setError('Room tidak ditemukan. Pastikan kode PIN sudah benar dan Guru sudah membuka room.');
+        setLoading(false);
+        return;
+      }
+
+      // Generate player ID
+      const playerId = `player-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+      // Simpan identitas ke sessionStorage
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('typearena_player_id', playerId);
+        sessionStorage.setItem('typearena_player_name', cleanName);
+        sessionStorage.setItem('typearena_player_avatar', avatar);
+      }
+
+      // Join room via manager
+      const manager = new RoomManager(cleanPin);
+      await manager.joinPlayer({
+        id: playerId,
+        name: cleanName,
+        avatar,
+        progress: 0,
+        currentWpm: 0,
+        netWpm: 0,
+        accuracy: 100,
+        completed: false,
+        score: 0,
+      });
+
+      router.push(`/play/${cleanPin}`);
+    } catch {
+      setError('Terjadi kendala saat bergabung ke room.');
+      setLoading(false);
     }
-
-    // Generate player ID
-    const playerId = `player-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-
-    // Simpan identitas ke sessionStorage
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('typearena_player_id', playerId);
-      sessionStorage.setItem('typearena_player_name', cleanName);
-      sessionStorage.setItem('typearena_player_avatar', avatar);
-    }
-
-    // Join room
-    manager.joinPlayer({
-      id: playerId,
-      name: cleanName,
-      avatar,
-      progress: 0,
-      currentWpm: 0,
-      netWpm: 0,
-      accuracy: 100,
-      completed: false,
-      score: 0,
-    });
-
-    router.push(`/play/${cleanPin}`);
   };
 
   return (
@@ -128,9 +154,10 @@ export default function JoinPage() {
 
           <button
             type="submit"
-            className="w-full mt-2 py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/25 transition-all hover:scale-[1.02]"
+            disabled={loading}
+            className="w-full mt-2 py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 disabled:opacity-50 text-slate-950 font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/25 transition-all hover:scale-[1.02]"
           >
-            <span>Masuk ke Arena Balapan</span>
+            <span>{loading ? 'Menghubungkan ke Room...' : 'Masuk ke Arena Balapan'}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
