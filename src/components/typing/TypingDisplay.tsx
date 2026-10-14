@@ -15,6 +15,16 @@ export const TypingDisplay: React.FC<TypingDisplayProps> = ({
   currentIndex,
   isCode = false,
 }) => {
+  const textToRender = targetText || '';
+
+  if (textToRender.length === 0) {
+    return (
+      <div className="w-full rounded-2xl p-8 bg-slate-900/90 border border-slate-700/80 text-center font-mono text-slate-500 italic">
+        Menyiapkan teks pengetikan...
+      </div>
+    );
+  }
+
   return (
     <div
       className={`relative w-full rounded-2xl p-6 md:p-8 bg-slate-900/90 border border-slate-700/80 shadow-2xl backdrop-blur select-none ${
@@ -28,7 +38,7 @@ export const TypingDisplay: React.FC<TypingDisplayProps> = ({
           isCode ? 'whitespace-pre font-medium' : 'whitespace-pre-wrap'
         }`}
       >
-        {targetText.split('').map((char, index) => {
+        {textToRender.split('').map((char, index) => {
           let charColor = 'text-slate-500';
           let bgColor = '';
           const isCurrent = index === currentIndex;

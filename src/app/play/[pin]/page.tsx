@@ -70,8 +70,16 @@ export default function PlayRoomPage() {
 
   // Target text untuk ronde aktif
   const currentRound = useMemo(() => {
-    if (!room || !room.rounds || room.rounds.length === 0) return null;
-    return room.rounds[room.currentRoundIndex] || room.rounds[0];
+    if (room && room.rounds && room.rounds.length > 0) {
+      return room.rounds[room.currentRoundIndex] || room.rounds[0];
+    }
+    // Fallback jika data ronde belum tiba
+    return {
+      roundNumber: 1,
+      title: 'Latihan 10 Jari: Home Row Dasar',
+      text: 'asdf jkl; asdf jkl; fads jads klas lada jala fasal fajar salak salsa daska',
+      isCode: false,
+    };
   }, [room]);
 
   const targetText = currentRound?.text || '';
