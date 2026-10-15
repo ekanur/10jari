@@ -3,7 +3,8 @@
 import React from 'react';
 import { LiveRoom } from '@/types';
 import { AVATAR_MAP } from '@/components/ui/AvatarPicker';
-import { Trophy, Award, ArrowRight } from 'lucide-react';
+import { Trophy, Award, ArrowRight, FileSpreadsheet } from 'lucide-react';
+import { exportRoomSpreadsheet } from '@/lib/exportSpreadsheet';
 
 interface RoundLeaderboardProps {
   room: LiveRoom;
@@ -117,19 +118,30 @@ export const RoundLeaderboard: React.FC<RoundLeaderboardProps> = ({
       )}
 
       {/* Host Controls */}
-      <div className="pt-4 border-t border-slate-800 flex items-center justify-between">
+      <div className="pt-4 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="text-xs text-slate-400">
           Ronde {room.currentRoundIndex + 1} dari {room.rounds.length}
         </div>
 
         {isHost ? (
-          <button
-            onClick={onNextRound}
-            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-sm shadow-lg shadow-purple-600/30 transition-all hover:scale-105"
-          >
-            {isFinalRound ? 'Lihat Podium Juara 🏆' : 'Lanjut ke Ronde Berikutnya'}
-            <ArrowRight className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2.5 w-full sm:w-auto">
+            <button
+              onClick={() => exportRoomSpreadsheet(room, 'xlsx')}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 hover:text-emerald-300 font-semibold text-xs border border-emerald-500/20 transition-all"
+              title="Unduh Rekap Nilai Sementara"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              <span>Unduh Rekap</span>
+            </button>
+
+            <button
+              onClick={onNextRound}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-purple-600/30 transition-all hover:scale-105"
+            >
+              {isFinalRound ? 'Lihat Podium Juara 🏆' : 'Lanjut ke Ronde Berikutnya'}
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
         ) : (
           <div className="text-xs text-amber-400 animate-pulse font-medium">
             Menunggu guru memulai ronde berikutnya...

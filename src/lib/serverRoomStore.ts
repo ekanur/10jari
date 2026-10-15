@@ -207,15 +207,33 @@ export function updateServerPlayerProgress(
   }
 
   if (room.players[playerId]) {
+    const isFirstCompletion = completed && !room.players[playerId].completed;
+
     room.players[playerId].progress = progress;
     room.players[playerId].currentWpm = currentWpm;
     room.players[playerId].netWpm = netWpm;
     room.players[playerId].accuracy = accuracy;
     room.players[playerId].completed = completed;
 
-    if (completed) {
+    if (isFirstCompletion) {
       const roundScore = Math.round(netWpm * 10 * (accuracy / 100) * (progress / 100));
       room.players[playerId].score = (room.players[playerId].score || 0) + roundScore;
+
+      const currentRound = room.rounds[room.currentRoundIndex];
+      if (!room.players[playerId].roundHistory) {
+        room.players[playerId].roundHistory = {};
+      }
+      room.players[playerId].roundHistory![room.currentRoundIndex] = {
+        roundIndex: room.currentRoundIndex,
+        roundTitle: currentRound?.title || `Ronde ${room.currentRoundIndex + 1}`,
+        category: currentRound?.category,
+        netWpm,
+        currentWpm,
+        accuracy,
+        progress,
+        completed: true,
+        scoreEarned: roundScore,
+      };
     }
 
     writeAllRooms(rooms);
@@ -234,14 +252,46 @@ export function updateServerRoomStatus(pin: string, status: RoomStatus): LiveRoo
 
   // Jika ronde diakhiri guru, berikan skor proporsional bagi siswa yang belum selesai namun telah mengetik
   if (status === 'round-ended') {
+    const currentRound = room.rounds[room.currentRoundIndex];
     Object.keys(room.players).forEach((id) => {
       const player = room.players[id];
+      if (!player.roundHistory) {
+        player.roundHistory = {};
+      }
+
       if (!player.completed && player.progress > 0) {
         const partialScore = Math.round(
           (player.netWpm || 0) * 10 * ((player.accuracy || 100) / 100) * ((player.progress || 0) / 100)
         );
         player.score = (player.score || 0) + partialScore;
         player.completed = true;
+
+        player.roundHistory[room.currentRoundIndex] = {
+          roundIndex: room.currentRoundIndex,
+          roundTitle: currentRound?.title || `Ronde ${room.currentRoundIndex + 1}`,
+          category: currentRound?.category,
+          netWpm: player.netWpm || 0,
+          currentWpm: player.currentWpm || 0,
+          accuracy: player.accuracy || 100,
+          progress: player.progress || 0,
+          completed: false,
+          scoreEarned: partialScore,
+        };
+      } else if (player.completed && !player.roundHistory[room.currentRoundIndex]) {
+        const roundScore = Math.round(
+          (player.netWpm || 0) * 10 * ((player.accuracy || 100) / 100) * ((player.progress || 100) / 100)
+        );
+        player.roundHistory[room.currentRoundIndex] = {
+          roundIndex: room.currentRoundIndex,
+          roundTitle: currentRound?.title || `Ronde ${room.currentRoundIndex + 1}`,
+          category: currentRound?.category,
+          netWpm: player.netWpm || 0,
+          currentWpm: player.currentWpm || 0,
+          accuracy: player.accuracy || 100,
+          progress: player.progress || 100,
+          completed: true,
+          scoreEarned: roundScore,
+        };
       }
     });
   }
@@ -257,15 +307,32 @@ export function advanceServerNextRound(pin: string): LiveRoom | null {
   if (!room) return null;
 
   if (room.currentRoundIndex < room.rounds.length - 1) {
+    const currentRound = room.rounds[room.currentRoundIndex];
+    Object.keys(room.players).forEach((id) => {
+      const player = room.players[id];
+      if (!player.roundHistory) player.roundHistory = {};
+      if (!player.roundHistory[room.currentRoundIndex]) {
+        player.roundHistory[room.currentRoundIndex] = {
+          roundIndex: room.currentRoundIndex,
+          roundTitle: currentRound?.title || `Ronde ${room.currentRoundIndex + 1}`,
+          category: currentRound?.category,
+          netWpm: player.netWpm || 0,
+          currentWpm: player.currentWpm || 0,
+          accuracy: player.accuracy || 100,
+          progress: player.progress || 0,
+          completed: player.completed,
+          scoreEarned: 0,
+        };
+      }
+      player.progress = 0;
+      player.completed = false;
+      player.currentWpm = 0;
+      player.netWpm = 0;
+      player.accuracy = 100;
+    });
+
     room.currentRoundIndex += 1;
     room.status = 'countdown';
-    Object.keys(room.players).forEach((id) => {
-      room.players[id].progress = 0;
-      room.players[id].completed = false;
-      room.players[id].currentWpm = 0;
-      room.players[id].netWpm = 0;
-      room.players[id].accuracy = 100;
-    });
   } else {
     room.status = 'podium';
   }

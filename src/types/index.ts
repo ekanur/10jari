@@ -41,6 +41,18 @@ export interface TypingStats {
 
 export type PlayerAvatar = 'fox' | 'cat' | 'panda' | 'rabbit' | 'bear' | 'koala' | 'lion' | 'tiger';
 
+export interface PlayerRoundStat {
+  roundIndex: number;
+  roundTitle: string;
+  category?: string;
+  netWpm: number;
+  currentWpm: number;
+  accuracy: number;
+  progress: number;
+  completed: boolean;
+  scoreEarned: number;
+}
+
 export interface PlayerState {
   id: string;
   name: string;
@@ -51,6 +63,7 @@ export interface PlayerState {
   accuracy: number;
   completed: boolean;
   score: number;
+  roundHistory?: Record<number, PlayerRoundStat>;
 }
 
 export type RoomStatus = 'lobby' | 'countdown' | 'in-progress' | 'round-ended' | 'podium';

@@ -152,14 +152,33 @@ export class RoomManager {
     // 1. Optimistic local update
     const room = this.getRoom();
     if (room && room.players[playerId]) {
+      const isFirstCompletion = completed && !room.players[playerId].completed;
+
       room.players[playerId].progress = progress;
       room.players[playerId].currentWpm = currentWpm;
       room.players[playerId].netWpm = netWpm;
       room.players[playerId].accuracy = accuracy;
       room.players[playerId].completed = completed;
-      if (completed) {
+
+      if (isFirstCompletion) {
         const roundScore = Math.round(netWpm * 10 * (accuracy / 100) * (progress / 100));
         room.players[playerId].score = (room.players[playerId].score || 0) + roundScore;
+
+        const currentRound = room.rounds[room.currentRoundIndex];
+        if (!room.players[playerId].roundHistory) {
+          room.players[playerId].roundHistory = {};
+        }
+        room.players[playerId].roundHistory![room.currentRoundIndex] = {
+          roundIndex: room.currentRoundIndex,
+          roundTitle: currentRound?.title || `Ronde ${room.currentRoundIndex + 1}`,
+          category: currentRound?.category,
+          netWpm,
+          currentWpm,
+          accuracy,
+          progress,
+          completed: true,
+          scoreEarned: roundScore,
+        };
       }
       this.updateLocalRoom(room);
     }

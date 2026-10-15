@@ -34,7 +34,9 @@ import {
   X,
   Check,
   Sparkles,
+  FileSpreadsheet,
 } from 'lucide-react';
+import { exportRoomSpreadsheet } from '@/lib/exportSpreadsheet';
 
 export default function TeacherDashboardPage() {
   const router = useRouter();
@@ -318,13 +320,24 @@ export default function TeacherDashboardPage() {
                       Tutup Room
                     </button>
 
-                    <Link
-                      href={`/teacher/host/${r.pin}`}
-                      className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-md shadow-purple-600/30 transition-all hover:scale-105"
-                    >
-                      <span>Buka Layar Host</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </Link>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => exportRoomSpreadsheet(r, 'xlsx')}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 hover:text-emerald-300 font-semibold text-xs border border-emerald-500/20 transition-all hover:scale-105"
+                        title="Unduh Rekap Nilai Peserta (.xlsx)"
+                      >
+                        <FileSpreadsheet className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Unduh Rekap</span>
+                      </button>
+
+                      <Link
+                        href={`/teacher/host/${r.pin}`}
+                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-md shadow-purple-600/30 transition-all hover:scale-105"
+                      >
+                        <span>Buka Layar Host</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </Link>
+                    </div>
                   </div>
                 </div>
               );

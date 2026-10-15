@@ -8,7 +8,8 @@ import { RaceProgressTrack } from '@/components/room/RaceProgressTrack';
 import { RoundLeaderboard } from '@/components/room/RoundLeaderboard';
 import { FinalPodium } from '@/components/room/FinalPodium';
 import { AVATAR_MAP } from '@/components/ui/AvatarPicker';
-import { Play, Copy, Check, Users, ArrowRight, Flag, StopCircle } from 'lucide-react';
+import { Play, Copy, Check, Users, ArrowRight, Flag, StopCircle, FileSpreadsheet } from 'lucide-react';
+import { exportRoomSpreadsheet } from '@/lib/exportSpreadsheet';
 
 export default function TeacherHostPage() {
   const params = useParams();
@@ -130,8 +131,17 @@ export default function TeacherHostPage() {
           </div>
         </div>
 
-        {/* PIN Box (Sangat jelas untuk proyektor kelas) */}
+        {/* Actions & PIN Box */}
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => exportRoomSpreadsheet(room, 'xlsx')}
+            className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 hover:text-emerald-300 font-semibold text-xs border border-emerald-500/20 transition-all hover:scale-105 shadow-sm"
+            title="Unduh Rekap Spreadsheet Hasil Siswa (.xlsx)"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            <span className="hidden sm:inline">Unduh Rekap</span>
+          </button>
+
           <div className="flex flex-col items-end">
             <span className="text-[10px] uppercase font-bold text-slate-400">Kode PIN Siswa:</span>
             <div className="flex items-center gap-2">

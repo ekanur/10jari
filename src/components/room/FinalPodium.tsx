@@ -3,7 +3,8 @@
 import React, { useEffect } from 'react';
 import { LiveRoom } from '@/types';
 import { AVATAR_MAP } from '@/components/ui/AvatarPicker';
-import { Trophy, Home, Sparkles } from 'lucide-react';
+import { Trophy, Home, Sparkles, FileSpreadsheet, Download } from 'lucide-react';
+import { exportRoomSpreadsheet } from '@/lib/exportSpreadsheet';
 import Link from 'next/link';
 
 interface FinalPodiumProps {
@@ -148,11 +149,28 @@ export const FinalPodium: React.FC<FinalPodiumProps> = ({ room }) => {
         </div>
       )}
 
-      {/* Footer Navigation */}
-      <div className="flex justify-center mt-10">
+      {/* Footer Navigation & Download Rekap Guru */}
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-10">
+        <button
+          onClick={() => exportRoomSpreadsheet(room, 'xlsx')}
+          className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-sm shadow-lg shadow-emerald-600/30 transition-all hover:scale-105"
+        >
+          <FileSpreadsheet className="w-4 h-4" />
+          <span>Unduh Rekap Nilai (.xlsx)</span>
+        </button>
+
+        <button
+          onClick={() => exportRoomSpreadsheet(room, 'csv')}
+          className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-sm transition-all border border-slate-700"
+          title="Unduh format CSV"
+        >
+          <Download className="w-4 h-4" />
+          <span>Unduh CSV</span>
+        </button>
+
         <Link
           href="/"
-          className="flex items-center gap-2 px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-sm transition-all border border-slate-700 shadow-md"
+          className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-sm transition-all border border-slate-700 shadow-md"
         >
           <Home className="w-4 h-4" /> Kembali ke Beranda
         </Link>

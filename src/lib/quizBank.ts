@@ -131,7 +131,7 @@ export const DEFAULT_QUIZ_BANK: QuizItem[] = [
     language: 'code',
     difficulty: 'advanced',
     isCode: true,
-    text: 'const filterScores = (scores, min) => scores.filter(s => s >= min);',
+    text: 'const filterScores = (scores, min) => {\n  return scores.filter(s => s >= min);\n};',
   },
   {
     id: 'code-js-2',
