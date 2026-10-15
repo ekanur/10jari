@@ -18,6 +18,7 @@ export const RoundLeaderboard: React.FC<RoundLeaderboardProps> = ({
 }) => {
   const currentRound = room.rounds[room.currentRoundIndex];
   const isFinalRound = room.currentRoundIndex >= room.rounds.length - 1;
+  const nextRound = !isFinalRound ? room.rounds[room.currentRoundIndex + 1] : null;
 
   // Urutkan siswa berdasarkan total skor tertinggi
   const sortedPlayers = Object.values(room.players).sort((a, b) => (b.score || 0) - (a.score || 0));
@@ -33,6 +34,11 @@ export const RoundLeaderboard: React.FC<RoundLeaderboardProps> = ({
           Papan Skor Sementara
         </h2>
         <p className="text-slate-400 text-sm mt-1">{currentRound?.title}</p>
+        {currentRound?.category && (
+          <span className="inline-block mt-2 text-xs font-semibold text-purple-300 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20">
+            Kategori: {currentRound.category}
+          </span>
+        )}
       </div>
 
       {/* Tabel Pemain */}
@@ -87,6 +93,28 @@ export const RoundLeaderboard: React.FC<RoundLeaderboardProps> = ({
           );
         })}
       </div>
+
+      {/* Teaser Babak Berikutnya (Kategori & Judul Teks) */}
+      {!isFinalRound && nextRound && (
+        <div className="mb-4 p-4 rounded-2xl bg-indigo-950/40 border border-indigo-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-pulse">
+          <div>
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+              <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">
+                Persiapan Ronde {nextRound.roundNumber}
+              </span>
+              {nextRound.category && (
+                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                  Kategori: {nextRound.category}
+                </span>
+              )}
+            </div>
+            <h4 className="text-sm font-bold text-white">{nextRound.title}</h4>
+          </div>
+          <span className="text-xs text-indigo-300/80 font-mono hidden sm:inline whitespace-nowrap bg-indigo-900/40 px-2.5 py-1 rounded-lg border border-indigo-500/20">
+            {nextRound.text.length} Karakter
+          </span>
+        </div>
+      )}
 
       {/* Host Controls */}
       <div className="pt-4 border-t border-slate-800 flex items-center justify-between">

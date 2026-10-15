@@ -118,9 +118,16 @@ export default function TeacherHostPage() {
           <h2 className="text-xl sm:text-2xl font-extrabold text-white mt-1">
             {room.title}
           </h2>
-          <p className="text-xs text-slate-400">
-            Ronde {room.currentRoundIndex + 1} dari {room.rounds.length} • {currentRound?.title}
-          </p>
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
+            <p className="text-xs text-slate-400">
+              Ronde {room.currentRoundIndex + 1} dari {room.rounds.length} • {currentRound?.title}
+            </p>
+            {currentRound?.category && (
+              <span className="text-[11px] font-semibold text-purple-300 px-2.5 py-0.5 rounded-full bg-purple-500/20 border border-purple-500/30">
+                {currentRound.category}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* PIN Box (Sangat jelas untuk proyektor kelas) */}
@@ -155,6 +162,21 @@ export default function TeacherHostPage() {
             <p className="text-slate-400 text-sm mt-1">
               Minta siswa membuka aplikasi dan memasukkan PIN <span className="text-amber-400 font-mono font-bold">{room.pin}</span>
             </p>
+
+            {/* Ringkasan Babak yang Telah Disiapkan Guru */}
+            {room.rounds && room.rounds.length > 0 && (
+              <div className="flex flex-wrap items-center justify-center gap-2 mt-3">
+                {room.rounds.map((rnd, i) => (
+                  <span
+                    key={i}
+                    className="text-[11px] font-medium px-3 py-1 rounded-xl bg-slate-800/90 border border-slate-700 text-slate-200 flex items-center gap-1.5 shadow-sm"
+                  >
+                    <span className="font-bold text-amber-400">B{rnd.roundNumber}:</span>
+                    <span>{rnd.category || rnd.title}</span>
+                  </span>
+                ))}
+              </div>
+            )}
 
             {/* List Siswa */}
             <div className="my-8 p-5 rounded-2xl bg-slate-950/60 border border-slate-800/80 min-h-[140px] flex flex-wrap items-center justify-center gap-3">
@@ -195,6 +217,12 @@ export default function TeacherHostPage() {
           <div className="text-9xl font-black text-amber-400 my-4 animate-bounce">
             {countdownVal}
           </div>
+          {currentRound?.category && (
+            <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs font-bold mb-2 shadow-sm">
+              <span>Kategori:</span>
+              <span className="text-white">{currentRound.category}</span>
+            </div>
+          )}
           <h3 className="text-xl font-bold text-white">
             {currentRound?.title}
           </h3>

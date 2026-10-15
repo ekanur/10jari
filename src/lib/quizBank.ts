@@ -1,4 +1,4 @@
-import { QuizItem } from '@/types';
+import { QuizItem, QuizCategory, QuizRound } from '@/types';
 
 export const DEFAULT_QUIZ_BANK: QuizItem[] = [
   // --- 10 JARI: HOME ROW ---
@@ -198,4 +198,74 @@ export function deleteCustomQuiz(id: string): void {
 
 export function getAllQuizzes(): QuizItem[] {
   return [...getCustomQuizzes(), ...DEFAULT_QUIZ_BANK];
+}
+
+export const CATEGORY_LABELS: Record<QuizCategory, string> = {
+  'home-row': 'Baris Rumah (Home Row)',
+  'top-row': 'Baris Atas (Top Row)',
+  'bottom-row': 'Baris Bawah (Bottom Row)',
+  'all-letters': 'Semua Huruf (A-Z)',
+  'numbers': 'Baris Angka & Simbol',
+  'sentences-id': 'Kalimat Bahasa Indonesia',
+  'sentences-en': 'Kalimat Bahasa Inggris',
+  'code-js': 'Kode JavaScript',
+  'code-html': 'Kode HTML',
+  'code-py': 'Kode Python',
+  'custom': 'Teks Guru (Kustom)',
+};
+
+export function getCategoryLabel(category?: string): string {
+  if (!category) return 'Materi Campuran';
+  return (CATEGORY_LABELS as Record<string, string>)[category] || category;
+}
+
+// Generate babak turnamen acak (minimal 3, maksimal 5) dengan kategori berbeda per babak
+export function generateRandomRounds(totalRounds: number = 3): QuizRound[] {
+  const count = Math.min(5, Math.max(3, totalRounds));
+  const all = getAllQuizzes();
+  if (all.length === 0) return [];
+
+  // Kelompokkan kuis berdasarkan kategori
+  const categoryMap = new Map<string, QuizItem[]>();
+  for (const item of all) {
+    const list = categoryMap.get(item.category) || [];
+    list.push(item);
+    categoryMap.set(item.category, list);
+  }
+
+  // Acak urutan kategori
+  const categories = Array.from(categoryMap.keys()).sort(() => Math.random() - 0.5);
+  const selectedQuizIds = new Set<string>();
+  const rounds: QuizRound[] = [];
+
+  for (let r = 0; r < count; r++) {
+    let chosenQuiz: QuizItem | null = null;
+    const catIndex = r % categories.length;
+    const targetCategory = categories[catIndex];
+    const catQuizzes = (categoryMap.get(targetCategory) || []).filter((q) => !selectedQuizIds.has(q.id));
+
+    if (catQuizzes.length > 0) {
+      chosenQuiz = catQuizzes[Math.floor(Math.random() * catQuizzes.length)];
+    } else {
+      // Jika kategori target sudah terpakai semua, ambil kuis lain yang belum pernah dipakai
+      const remaining = all.filter((q) => !selectedQuizIds.has(q.id));
+      if (remaining.length > 0) {
+        chosenQuiz = remaining[Math.floor(Math.random() * remaining.length)];
+      } else {
+        // Fallback: ambil kuis manapun secara acak
+        chosenQuiz = all[Math.floor(Math.random() * all.length)];
+      }
+    }
+
+    selectedQuizIds.add(chosenQuiz.id);
+    rounds.push({
+      roundNumber: r + 1,
+      title: chosenQuiz.title,
+      text: chosenQuiz.text,
+      category: getCategoryLabel(chosenQuiz.category),
+      isCode: chosenQuiz.isCode || chosenQuiz.category.startsWith('code-'),
+    });
+  }
+
+  return rounds;
 }

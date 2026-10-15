@@ -3,11 +3,38 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { DEFAULT_QUIZ_BANK, getCustomQuizzes, deleteCustomQuiz } from '@/lib/quizBank';
+import {
+  DEFAULT_QUIZ_BANK,
+  getCustomQuizzes,
+  deleteCustomQuiz,
+  getAllQuizzes,
+  getCategoryLabel,
+  generateRandomRounds,
+} from '@/lib/quizBank';
 import { createLiveRoom } from '@/lib/realtimeService';
 import { QuizItem, QuizRound, LiveRoom } from '@/types';
 import { useTeacherAuth } from '@/hooks/useTeacherAuth';
-import { GraduationCap, Plus, Play, Trash2, Code2, BookOpen, Layers, CheckCircle2, LogOut, User, Radio, Users, ArrowRight } from 'lucide-react';
+import {
+  GraduationCap,
+  Plus,
+  Play,
+  Trash2,
+  Code2,
+  BookOpen,
+  Layers,
+  CheckCircle2,
+  LogOut,
+  User,
+  Radio,
+  Users,
+  ArrowRight,
+  Trophy,
+  Dices,
+  Settings2,
+  X,
+  Check,
+  Sparkles,
+} from 'lucide-react';
 
 export default function TeacherDashboardPage() {
   const router = useRouter();
@@ -15,6 +42,15 @@ export default function TeacherDashboardPage() {
   const [customQuizzes, setCustomQuizzes] = useState<QuizItem[]>([]);
   const [activeTab, setActiveTab] = useState<'custom' | 'default'>('custom');
   const [activeRooms, setActiveRooms] = useState<LiveRoom[]>([]);
+
+  // State Modal Konfigurasi Room (3-5 Babak)
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [roomTitle, setRoomTitle] = useState('Turnamen 10 Jari Kelas');
+  const [totalRounds, setTotalRounds] = useState<number>(3); // 3, 4, 5
+  const [selectionMode, setSelectionMode] = useState<'random' | 'manual'>('random');
+  const [randomRounds, setRandomRounds] = useState<QuizRound[]>([]);
+  const [manualSelections, setManualSelections] = useState<string[]>([]);
+  const [isCreatingRoom, setIsCreatingRoom] = useState(false);
 
   const fetchActiveRooms = async () => {
     try {
@@ -55,45 +91,112 @@ export default function TeacherDashboardPage() {
     }
   };
 
-  // Mulai Live Room dari 1 atau beberapa kuis terpilih
-  const handleStartRoom = async (quiz: QuizItem) => {
-    const rounds: QuizRound[] = [
-      {
-        roundNumber: 1,
-        title: quiz.title,
-        text: quiz.text,
-        isCode: quiz.isCode,
-      },
-    ];
+  // Helper untuk membuka modal Room Turnamen Baru
+  const handleOpenCreateModal = () => {
+    setRoomTitle('Turnamen 10 Jari Kelas');
+    setTotalRounds(3);
+    setSelectionMode('random');
+    setRandomRounds(generateRandomRounds(3));
 
-    const newRoom = await createLiveRoom(quiz.title, 'Guru Kelas', rounds);
-    router.push(`/teacher/host/${newRoom.pin}`);
+    const all = getAllQuizzes();
+    setManualSelections([
+      all[0]?.id || 'hr-1',
+      all[1]?.id || 'tr-1',
+      all[2]?.id || 'num-1',
+    ]);
+    setIsCreateModalOpen(true);
   };
 
-  // Buat Live Room multi-ronde gabungan
-  const handleStartMultiRoundRoom = async () => {
-    const rounds: QuizRound[] = [
-      {
-        roundNumber: 1,
-        title: 'Ronde 1: Home Row Dasar (Pemanasan)',
-        text: 'asdf jkl; asdf jkl; fads jads klas lada jala fasal fajar salak salsa daska',
-      },
-      {
-        roundNumber: 2,
-        title: 'Ronde 2: Baris Angka & Alfanumerik',
-        text: 'kelas 10 nomor 45 tahun 2026 harga 75000 diskon 15 persen kamar 302 lantai 4',
-      },
-      {
-        roundNumber: 3,
-        title: 'Ronde 3: Sintaks Kode JavaScript',
-        text: 'const filterScores = (scores, min) => scores.filter(s => s >= min);',
-        isCode: true,
-      },
-    ];
+  // Helper ketika Guru memilih materi tertentu dari card untuk dimasukkan ke Turnamen
+  const handleUseQuizInTournament = (quiz: QuizItem) => {
+    setRoomTitle(`Turnamen 10 Jari - ${quiz.title}`);
+    setTotalRounds(3);
+    setSelectionMode('manual');
 
-    const newRoom = await createLiveRoom('Turnamen 10 Jari Kelas (3 Ronde)', 'Guru Kelas', rounds);
-    router.push(`/teacher/host/${newRoom.pin}`);
+    const all = getAllQuizzes();
+    const others = all.filter((q) => q.id !== quiz.id);
+    setManualSelections([
+      quiz.id,
+      others[0]?.id || 'tr-1',
+      others[1]?.id || 'num-1',
+    ]);
+    setRandomRounds(generateRandomRounds(3));
+    setIsCreateModalOpen(true);
   };
+
+  // Ganti jumlah babak (3, 4, 5)
+  const handleRoundCountChange = (count: number) => {
+    const newCount = Math.min(5, Math.max(3, count));
+    setTotalRounds(newCount);
+    setRandomRounds(generateRandomRounds(newCount));
+
+    const all = getAllQuizzes();
+    setManualSelections((prev) => {
+      const next = [...prev];
+      while (next.length < newCount) {
+        const unused = all.find((q) => !next.includes(q.id));
+        next.push(unused ? unused.id : all[next.length % all.length]?.id || 'hr-1');
+      }
+      return next.slice(0, newCount);
+    });
+  };
+
+  // Acak ulang babak pada Mode Acak
+  const handleRerollRandom = () => {
+    setRandomRounds(generateRandomRounds(totalRounds));
+  };
+
+  // Ganti pilihan kuis manual pada babak tertentu
+  const handleSelectManualQuiz = (roundIndex: number, quizId: string) => {
+    setManualSelections((prev) => {
+      const next = [...prev];
+      next[roundIndex] = quizId;
+      return next;
+    });
+  };
+
+  // Eksekusi Pembuatan Live Room
+  const handleLaunchRoom = async () => {
+    setIsCreatingRoom(true);
+    try {
+      let finalRounds: QuizRound[] = [];
+      const all = getAllQuizzes();
+      const quizMap = new Map(all.map((q) => [q.id, q]));
+
+      if (selectionMode === 'random') {
+        finalRounds = randomRounds.length >= 3 ? randomRounds : generateRandomRounds(totalRounds);
+      } else {
+        finalRounds = manualSelections.slice(0, totalRounds).map((id, idx) => {
+          const item = quizMap.get(id) || all[0];
+          return {
+            roundNumber: idx + 1,
+            title: item?.title || `Babak ${idx + 1}`,
+            text: item?.text || '',
+            category: getCategoryLabel(item?.category),
+            isCode: item?.isCode || item?.category.startsWith('code-'),
+          };
+        });
+      }
+
+      const host = teacher?.name || 'Guru Kelas';
+      const newRoom = await createLiveRoom(
+        roomTitle.trim() || 'Turnamen 10 Jari Kelas',
+        host,
+        finalRounds
+      );
+
+      setIsCreateModalOpen(false);
+      router.push(`/teacher/host/${newRoom.pin}`);
+    } catch (err) {
+      console.error('Error creating room:', err);
+      alert('Terjadi kesalahan saat membuat room. Silakan coba lagi.');
+    } finally {
+      setIsCreatingRoom(false);
+    }
+  };
+
+  const allAvailableQuizzes = getAllQuizzes();
+  const allQuizMap = new Map(allAvailableQuizzes.map((q) => [q.id, q]));
 
   return (
     <div className="flex-1 max-w-5xl w-full mx-auto px-4 py-8">
@@ -113,17 +216,17 @@ export default function TeacherDashboardPage() {
           </div>
           <h1 className="text-3xl font-extrabold text-white">Dashboard Guru</h1>
           <p className="text-slate-400 text-sm mt-1">
-            Kelola bank materi pengetikan, input kode pemrograman, dan luncurkan Live Room kelas.
+            Kelola bank materi pengetikan, susun turnamen 3-5 babak, dan luncurkan Live Room kelas.
           </p>
         </div>
 
         <div className="flex items-center gap-2.5">
           <button
-            onClick={handleStartMultiRoundRoom}
-            className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-bold text-xs shadow-lg shadow-amber-500/20 transition-all hover:scale-105"
+            onClick={handleOpenCreateModal}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/25 transition-all hover:scale-105"
           >
-            <Play className="w-4 h-4 fill-slate-950" />
-            Luncurkan 3 Ronde
+            <Trophy className="w-4 h-4 fill-slate-950" />
+            Buat Live Room (3-5 Babak)
           </button>
 
           <Link
@@ -321,16 +424,267 @@ export default function TeacherDashboardPage() {
               )}
 
               <button
-                onClick={() => handleStartRoom(quiz)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md shadow-indigo-600/30 transition-all hover:scale-105"
+                onClick={() => handleUseQuizInTournament(quiz)}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md shadow-indigo-600/30 transition-all hover:scale-105"
+                title="Gunakan materi ini dalam Live Room Turnamen"
               >
                 <Play className="w-3.5 h-3.5 fill-white" />
-                Buka Live Room
+                Gunakan di Turnamen
               </button>
             </div>
           </div>
         ))}
       </div>
+
+      {/* Modal Buat Room Turnamen (3-5 Babak) */}
+      {isCreateModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-slate-900 border border-slate-700/80 rounded-3xl max-w-2xl w-full p-6 sm:p-7 shadow-2xl relative my-8 flex flex-col gap-6 text-white max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-start justify-between pb-4 border-b border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                  <Trophy className="w-5 h-5 fill-amber-400/20" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-extrabold text-white">Buat Live Room Turnamen</h2>
+                  <p className="text-xs text-slate-400">Konfigurasi 3 hingga 5 babak materi pengetikan untuk siswa</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsCreateModalOpen(false)}
+                className="text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-slate-800 transition-colors"
+                title="Tutup Modal"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Input Judul Turnamen */}
+            <div>
+              <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+                Judul Room / Nama Turnamen
+              </label>
+              <input
+                type="text"
+                value={roomTitle}
+                onChange={(e) => setRoomTitle(e.target.value)}
+                placeholder="Contoh: Turnamen 10 Jari Kelas 10 RPL"
+                className="w-full px-4 py-2.5 rounded-xl bg-slate-950/80 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-amber-500 transition-colors"
+              />
+            </div>
+
+            {/* Pemilihan Jumlah Babak (Minimal 3, Maksimal 5) */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                  Jumlah Babak (Ronde)
+                </label>
+                <span className="text-[11px] font-semibold text-amber-400/90 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">
+                  Minimal 3 • Maksimal 5
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2.5">
+                {[3, 4, 5].map((count) => {
+                  const isSelected = totalRounds === count;
+                  return (
+                    <button
+                      key={count}
+                      type="button"
+                      onClick={() => handleRoundCountChange(count)}
+                      className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all text-center ${
+                        isSelected
+                          ? 'bg-amber-500/15 border-amber-500 text-amber-300 shadow-md shadow-amber-500/10 scale-[1.02]'
+                          : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                      }`}
+                    >
+                      <span className="text-lg font-black">{count} Babak</span>
+                      <span className="text-[10px] opacity-80 mt-0.5">
+                        {count === 3 ? 'Format Standar' : count === 4 ? 'Format Menengah' : 'Format Turnamen Penuh'}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Mode Pemilihan Materi (Acak vs Manual) */}
+            <div>
+              <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+                Metode Penentuan Materi Pengetikan
+              </label>
+              <div className="grid grid-cols-2 gap-2 p-1.5 rounded-2xl bg-slate-950/80 border border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setSelectionMode('random')}
+                  className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all ${
+                    selectionMode === 'random'
+                      ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 shadow-md'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Dices className="w-4 h-4" />
+                  <span>Mode Acak Otomatis</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectionMode('manual')}
+                  className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all ${
+                    selectionMode === 'manual'
+                      ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Settings2 className="w-4 h-4" />
+                  <span>Pilih Manual per Babak</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Konten Mode Acak */}
+            {selectionMode === 'random' && (
+              <div className="space-y-3 p-4 rounded-2xl bg-slate-950/60 border border-slate-800/80">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-amber-400" />
+                    <span className="text-xs font-bold text-slate-200">
+                      Rekomendasi Sistem (Kategori Berbeda per Babak)
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRerollRandom}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 text-xs font-semibold border border-amber-500/20 transition-all hover:scale-105"
+                  >
+                    <Dices className="w-3.5 h-3.5" />
+                    <span>Acak Ulang 🎲</span>
+                  </button>
+                </div>
+
+                <div className="space-y-2.5 pt-1">
+                  {randomRounds.slice(0, totalRounds).map((r, idx) => (
+                    <div
+                      key={idx}
+                      className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 flex items-start justify-between gap-3"
+                    >
+                      <div className="flex items-start gap-3">
+                        <span className="font-mono text-xs font-extrabold text-amber-400 bg-amber-500/10 px-2 py-1 rounded-lg border border-amber-500/20 shrink-0">
+                          Babak {r.roundNumber}
+                        </span>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                              {r.category || 'Materi Campuran'}
+                            </span>
+                            <span className="text-xs font-bold text-white line-clamp-1">
+                              {r.title}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-400 font-mono mt-1 line-clamp-1">
+                            {r.text}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-[11px] font-mono text-slate-500 shrink-0 pt-0.5">
+                        {r.text.length} Karakter
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Konten Mode Manual */}
+            {selectionMode === 'manual' && (
+              <div className="space-y-3.5 p-4 rounded-2xl bg-slate-950/60 border border-slate-800/80">
+                <div className="text-xs text-slate-300 font-semibold pb-1 border-b border-slate-800">
+                  Tentukan materi pengetikan untuk masing-masing babak:
+                </div>
+
+                <div className="space-y-3">
+                  {Array.from({ length: totalRounds }).map((_, idx) => {
+                    const selectedId = manualSelections[idx] || allAvailableQuizzes[0]?.id;
+                    const selectedItem = allQuizMap.get(selectedId) || allAvailableQuizzes[0];
+
+                    return (
+                      <div
+                        key={idx}
+                        className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-mono text-xs font-extrabold text-purple-400 bg-purple-500/10 px-2.5 py-0.5 rounded-lg border border-purple-500/20">
+                            Babak {idx + 1}
+                          </span>
+                          {selectedItem && (
+                            <span className="text-[11px] text-slate-400">
+                              Kategori: <strong className="text-slate-200">{getCategoryLabel(selectedItem.category)}</strong>
+                            </span>
+                          )}
+                        </div>
+
+                        <select
+                          value={selectedId}
+                          onChange={(e) => handleSelectManualQuiz(idx, e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs font-medium focus:outline-none focus:border-purple-500"
+                        >
+                          {customQuizzes.length > 0 && (
+                            <optgroup label="Teks Buatan Guru (Kustom)">
+                              {customQuizzes.map((q) => (
+                                <option key={q.id} value={q.id}>
+                                  ⭐ [Kustom] {q.title} ({q.text.length} kar)
+                                </option>
+                              ))}
+                            </optgroup>
+                          )}
+                          <optgroup label="Bank Materi Bawaan Sistem">
+                            {DEFAULT_QUIZ_BANK.map((q) => (
+                              <option key={q.id} value={q.id}>
+                                [{getCategoryLabel(q.category)}] {q.title} ({q.text.length} kar)
+                              </option>
+                            ))}
+                          </optgroup>
+                        </select>
+
+                        {selectedItem && (
+                          <div className="p-2 rounded-lg bg-slate-950/80 border border-slate-800/80 text-[11px] font-mono text-slate-400 line-clamp-2">
+                            {selectedItem.text}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Modal Footer */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-800">
+              <span className="text-xs text-slate-400">
+                Total <strong className="text-amber-400">{totalRounds} Babak</strong> siap diluncurkan ke siswa.
+              </span>
+
+              <div className="flex items-center gap-2.5 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setIsCreateModalOpen(false)}
+                  className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  disabled={isCreatingRoom}
+                  onClick={handleLaunchRoom}
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/20 transition-all hover:scale-105 disabled:opacity-50"
+                >
+                  <Play className="w-3.5 h-3.5 fill-slate-950" />
+                  <span>{isCreatingRoom ? 'Membuat Room...' : `Luncurkan (${totalRounds} Babak) 🚀`}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -59,6 +59,7 @@ export interface QuizRound {
   roundNumber: number;
   text: string;
   title: string;
+  category?: string;
   isCode?: boolean;
   durationSeconds?: number;
 }

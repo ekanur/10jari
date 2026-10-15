@@ -105,9 +105,16 @@ function StudentRaceScreen({ room, roundIndex, playerId, manager }: StudentRaceS
           </div>
         </div>
 
-        {/* Info Ronde */}
-        <div className="text-xs text-slate-400 font-medium bg-slate-800/80 px-3.5 py-1.5 rounded-xl border border-slate-700">
-          Ronde {roundIndex + 1} dari {room.rounds.length}
+        {/* Info Ronde & Kategori */}
+        <div className="flex items-center gap-2">
+          {currentRound?.category && (
+            <span className="hidden sm:inline-flex text-xs text-purple-300 font-semibold bg-purple-500/10 px-3 py-1 rounded-xl border border-purple-500/20">
+              Kategori: {currentRound.category}
+            </span>
+          )}
+          <div className="text-xs text-slate-400 font-medium bg-slate-800/80 px-3.5 py-1.5 rounded-xl border border-slate-700">
+            Ronde {roundIndex + 1} dari {room.rounds.length}
+          </div>
         </div>
       </div>
 
@@ -225,9 +232,34 @@ export default function PlayRoomPage() {
           <h1 className="text-3xl sm:text-4xl font-extrabold text-white mb-2">
             {room.title}
           </h1>
-          <p className="text-slate-400 text-sm mb-8">
+          <p className="text-slate-400 text-sm mb-6">
             Host: <span className="font-semibold text-slate-200">{room.hostName}</span> • Menunggu guru memulai sesi balapan...
           </p>
+
+          {/* Info Kategori Babak 1 yang Akan Dikerjakan */}
+          {room.rounds && room.rounds[0] && (
+            <div className="mb-6 p-4 rounded-2xl bg-indigo-950/40 border border-indigo-500/30 text-left flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-inner">
+              <div>
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                    Materi Babak 1
+                  </span>
+                  {room.rounds[0].category && (
+                    <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                      Kategori: {room.rounds[0].category}
+                    </span>
+                  )}
+                </div>
+                <h3 className="text-base font-bold text-white">{room.rounds[0].title}</h3>
+                <p className="text-slate-400 text-xs mt-0.5">
+                  Total {room.rounds.length} Babak turnamen • Siapkan posisi jari Anda pada tuts Home Row (ASDF JKL;)
+                </p>
+              </div>
+              <span className="text-xs text-indigo-300 font-mono bg-indigo-900/50 px-3 py-1 rounded-xl border border-indigo-500/30 whitespace-nowrap">
+                {room.rounds[0].text.length} Karakter
+              </span>
+            </div>
+          )}
 
           <div className="border-t border-slate-800 pt-6">
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">
@@ -272,6 +304,12 @@ export default function PlayRoomPage() {
           <div className="text-8xl sm:text-9xl font-black text-transparent bg-clip-text bg-gradient-to-b from-amber-300 via-amber-500 to-yellow-600 my-4 animate-bounce">
             {countdownVal}
           </div>
+          {currentRound?.category && (
+            <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs font-bold mb-2 shadow-sm">
+              <span>Kategori:</span>
+              <span className="text-white">{currentRound.category}</span>
+            </div>
+          )}
           <h2 className="text-xl font-bold text-white">
             Ronde {room.currentRoundIndex + 1}: {currentRound?.title}
           </h2>
