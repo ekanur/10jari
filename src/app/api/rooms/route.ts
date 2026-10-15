@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerRoom, getAllServerRooms, getActiveServerRooms, getPastServerRooms } from '@/lib/serverRoomStore';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const allRooms = getAllServerRooms();

@@ -7,6 +7,8 @@ import {
   deleteServerRoom,
 } from '@/lib/serverRoomStore';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest, { params }: { params: { pin: string } }) {
   const pin = params.pin;
   const room = getServerRoom(pin);

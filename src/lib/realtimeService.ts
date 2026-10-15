@@ -99,25 +99,30 @@ export class RoomManager {
     // MONOTONIC STATE GUARD:
     // Mencegah rollback ronde (misal: jika ada data tertunda yang memundurkan ronde)
     if (this.currentRoom) {
-      if (room.currentRoundIndex < this.currentRoom.currentRoundIndex) {
-        return;
-      }
+      const isNewerRoomSession =
+        Boolean(this.currentRoom.createdAt && room.createdAt && room.createdAt > this.currentRoom.createdAt);
 
-      // Dalam ronde yang sama, cegah kemunduran alur status
-      const statusWeight: Record<RoomStatus, number> = {
-        lobby: 0,
-        countdown: 1,
-        'in-progress': 2,
-        'round-ended': 3,
-        podium: 4,
-      };
+      if (!isNewerRoomSession) {
+        if (room.currentRoundIndex < this.currentRoom.currentRoundIndex) {
+          return;
+        }
 
-      if (
-        room.currentRoundIndex === this.currentRoom.currentRoundIndex &&
-        statusWeight[room.status] < statusWeight[this.currentRoom.status]
-      ) {
-        // Jangan izinkan rollback status pada ronde yang sama
-        return;
+        // Dalam ronde yang sama, cegah kemunduran alur status
+        const statusWeight: Record<RoomStatus, number> = {
+          lobby: 0,
+          countdown: 1,
+          'in-progress': 2,
+          'round-ended': 3,
+          podium: 4,
+        };
+
+        if (
+          room.currentRoundIndex === this.currentRoom.currentRoundIndex &&
+          statusWeight[room.status] < statusWeight[this.currentRoom.status]
+        ) {
+          // Jangan izinkan rollback status pada ronde yang sama
+          return;
+        }
       }
     }
 

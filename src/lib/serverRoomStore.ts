@@ -317,6 +317,11 @@ export function advanceServerNextRound(pin: string): LiveRoom | null {
   const room = rooms[pin];
   if (!room) return null;
 
+  // Cegah pemanggilan ganda jika status sudah dalam proses hitung mundur (countdown)
+  if (room.status === 'countdown') {
+    return room;
+  }
+
   if (room.currentRoundIndex < room.rounds.length - 1) {
     const currentRound = room.rounds[room.currentRoundIndex];
     Object.keys(room.players).forEach((id) => {

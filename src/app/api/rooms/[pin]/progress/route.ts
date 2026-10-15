@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { updateServerPlayerProgress } from '@/lib/serverRoomStore';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest, { params }: { params: { pin: string } }) {
   try {
     const pin = params.pin;
