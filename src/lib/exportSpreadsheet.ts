@@ -1,4 +1,3 @@
-import * as XLSX from 'xlsx';
 import { LiveRoom, PlayerState } from '@/types';
 
 /**
@@ -22,7 +21,8 @@ function formatIndonesianDate(timestamp: number): string {
 /**
  * Buat dan unduh berkas rekap spreadsheet (.xlsx atau .csv) untuk guru
  */
-export function exportRoomSpreadsheet(room: LiveRoom, fileType: 'xlsx' | 'csv' = 'xlsx'): void {
+export async function exportRoomSpreadsheet(room: LiveRoom, fileType: 'xlsx' | 'csv' = 'xlsx'): Promise<void> {
+  const XLSX = await import('xlsx');
   if (!room || !room.players) {
     alert('Data room tidak valid atau belum memiliki peserta.');
     return;
