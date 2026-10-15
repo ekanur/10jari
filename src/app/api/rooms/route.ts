@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerRoom, getActiveServerRooms } from '@/lib/serverRoomStore';
+import { createServerRoom, getAllServerRooms, getActiveServerRooms, getPastServerRooms } from '@/lib/serverRoomStore';
 
 export async function GET() {
   try {
-    const rooms = getActiveServerRooms();
-    return NextResponse.json({ success: true, rooms });
+    const allRooms = getAllServerRooms();
+    const activeRooms = getActiveServerRooms();
+    const pastRooms = getPastServerRooms();
+    return NextResponse.json({ success: true, rooms: allRooms, activeRooms, pastRooms });
   } catch (error) {
-    return NextResponse.json({ success: false, error: 'Gagal mengambil daftar room aktif' }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Gagal mengambil daftar room' }, { status: 500 });
   }
 }
 

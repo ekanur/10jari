@@ -35,6 +35,10 @@ import {
   Check,
   Sparkles,
   FileSpreadsheet,
+  History,
+  Calendar,
+  Clock,
+  Award,
 } from 'lucide-react';
 import { exportRoomSpreadsheet } from '@/lib/exportSpreadsheet';
 
@@ -43,7 +47,11 @@ export default function TeacherDashboardPage() {
   const { teacher, logout } = useTeacherAuth();
   const [customQuizzes, setCustomQuizzes] = useState<QuizItem[]>([]);
   const [activeTab, setActiveTab] = useState<'custom' | 'default'>('custom');
+
+  // State Room Aktif & Riwayat Room Pernah Dibuat
   const [activeRooms, setActiveRooms] = useState<LiveRoom[]>([]);
+  const [pastRooms, setPastRooms] = useState<LiveRoom[]>([]);
+  const [roomSectionTab, setRoomSectionTab] = useState<'active' | 'history'>('active');
 
   // State Modal Konfigurasi Room (3-5 Babak)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -54,12 +62,17 @@ export default function TeacherDashboardPage() {
   const [manualSelections, setManualSelections] = useState<string[]>([]);
   const [isCreatingRoom, setIsCreatingRoom] = useState(false);
 
-  const fetchActiveRooms = async () => {
+  const fetchRooms = async () => {
     try {
       const res = await fetch('/api/rooms');
       const data = await res.json();
-      if (data.success && data.rooms) {
-        setActiveRooms(data.rooms);
+      if (data.success) {
+        if (data.activeRooms) setActiveRooms(data.activeRooms);
+        if (data.pastRooms) setPastRooms(data.pastRooms);
+        if (!data.activeRooms && data.rooms) {
+          setActiveRooms(data.rooms.filter((r: LiveRoom) => r.status !== 'podium'));
+          setPastRooms(data.rooms.filter((r: LiveRoom) => r.status === 'podium'));
+        }
       }
     } catch {
       // ignore
@@ -68,10 +81,10 @@ export default function TeacherDashboardPage() {
 
   useEffect(() => {
     setCustomQuizzes(getCustomQuizzes());
-    fetchActiveRooms();
+    fetchRooms();
 
-    // Polling berkala setiap 4 detik untuk update room aktif
-    const interval = setInterval(fetchActiveRooms, 4000);
+    // Polling berkala setiap 3 detik untuk update room aktif & riwayat
+    const interval = setInterval(fetchRooms, 3000);
     return () => clearInterval(interval);
   }, []);
 
@@ -82,11 +95,14 @@ export default function TeacherDashboardPage() {
     }
   };
 
-  const handleCloseRoom = async (pin: string) => {
-    if (confirm(`Yakin ingin menutup dan menghapus sesi Room #${pin}?`)) {
+  const handleDeleteRoom = async (pin: string, isPast = false) => {
+    const promptMsg = isPast
+      ? `Yakin ingin menghapus arsip riwayat Room #${pin}?`
+      : `Yakin ingin menutup dan menghapus sesi aktif Room #${pin}?`;
+    if (confirm(promptMsg)) {
       try {
         await fetch(`/api/rooms/${pin}`, { method: 'DELETE' });
-        fetchActiveRooms();
+        fetchRooms();
       } catch {
         // ignore
       }
@@ -250,101 +266,253 @@ export default function TeacherDashboardPage() {
         </div>
       </div>
 
-      {/* Active Rooms Menu / Banner */}
-      {activeRooms.length > 0 && (
-        <div className="my-6 p-5 rounded-3xl bg-slate-900/90 border border-purple-500/30 shadow-2xl backdrop-blur animate-in fade-in duration-300">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-            <div className="flex items-center gap-2">
-              <span className="relative flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
-              </span>
-              <h2 className="text-base font-bold text-white flex items-center gap-2">
-                <Radio className="w-4 h-4 text-emerald-400" />
-                Room Aktif Sedang Berlangsung ({activeRooms.length})
-              </h2>
-            </div>
-            <span className="text-xs text-slate-400 hidden sm:inline">Pendidik dapat langsung kembali memimpin room</span>
+      {/* Pusat Live Room & Rekapitulasi Nilai Turnamen */}
+      <div className="my-6 p-5 sm:p-6 rounded-3xl bg-slate-900/90 border border-purple-500/30 shadow-2xl backdrop-blur animate-in fade-in duration-300">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4 border-b border-slate-800">
+          <div>
+            <h2 className="text-lg font-extrabold text-white flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-amber-400" />
+              Pusat Live Room & Rekap Nilai Siswa
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Pantau jalannya turnamen yang sedang aktif atau unduh rekap nilai dari riwayat room yang pernah dibuat.
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 mt-4">
-            {activeRooms.map((r) => {
-              const playerCount = Object.keys(r.players || {}).length;
-              let statusText = 'Di Lobby';
-              let statusBg = 'bg-slate-800 text-slate-300 border-slate-700';
+          {/* Sub-Tabs: Room Aktif vs Riwayat Selesai */}
+          <div className="flex items-center gap-1.5 p-1 bg-slate-950/80 rounded-2xl border border-slate-800 shrink-0">
+            <button
+              onClick={() => setRoomSectionTab('active')}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                roomSectionTab === 'active'
+                  ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Radio className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Room Aktif ({activeRooms.length})</span>
+            </button>
 
-              if (r.status === 'in-progress') {
-                statusText = 'Sedang Balapan';
-                statusBg = 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40';
-              } else if (r.status === 'countdown') {
-                statusText = 'Hitung Mundur';
-                statusBg = 'bg-amber-500/20 text-amber-400 border-amber-500/40';
-              } else if (r.status === 'round-ended') {
-                statusText = 'Akhir Ronde';
-                statusBg = 'bg-purple-500/20 text-purple-400 border-purple-500/40';
-              }
-
-              return (
-                <div
-                  key={r.pin}
-                  className="flex flex-col justify-between p-4 rounded-2xl bg-slate-950/70 border border-slate-800 hover:border-slate-700 transition-all shadow-md"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-mono text-base font-black text-amber-400 tracking-wider bg-slate-900 px-2.5 py-0.5 rounded-lg border border-amber-500/30">
-                          #{r.pin}
-                        </span>
-                        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-md border ${statusBg}`}>
-                          {statusText}
-                        </span>
-                      </div>
-                      <h3 className="font-bold text-white text-sm line-clamp-1">{r.title}</h3>
-                      <div className="flex items-center gap-3 text-xs text-slate-400 mt-1">
-                        <span className="flex items-center gap-1">
-                          <Users className="w-3.5 h-3.5 text-indigo-400" />
-                          {playerCount} Siswa
-                        </span>
-                        <span>•</span>
-                        <span>Ronde {r.currentRoundIndex + 1} dari {r.rounds.length}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-3 mt-3 border-t border-slate-800/80">
-                    <button
-                      onClick={() => handleCloseRoom(r.pin)}
-                      className="text-slate-500 hover:text-rose-400 text-xs font-semibold px-2 py-1 rounded-lg hover:bg-rose-500/10 transition-colors"
-                      title="Tutup Sesi Room"
-                    >
-                      Tutup Room
-                    </button>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => exportRoomSpreadsheet(r, 'xlsx')}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 hover:text-emerald-300 font-semibold text-xs border border-emerald-500/20 transition-all hover:scale-105"
-                        title="Unduh Rekap Nilai Peserta (.xlsx)"
-                      >
-                        <FileSpreadsheet className="w-3.5 h-3.5" />
-                        <span className="hidden sm:inline">Unduh Rekap</span>
-                      </button>
-
-                      <Link
-                        href={`/teacher/host/${r.pin}`}
-                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-md shadow-purple-600/30 transition-all hover:scale-105"
-                      >
-                        <span>Buka Layar Host</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+            <button
+              onClick={() => setRoomSectionTab('history')}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                roomSectionTab === 'history'
+                  ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <History className="w-3.5 h-3.5 text-amber-400" />
+              <span>Riwayat Room ({pastRooms.length})</span>
+            </button>
           </div>
         </div>
-      )}
+
+        {/* --- TAB 1: ROOM AKTIF SEDANG BERLANGSUNG --- */}
+        {roomSectionTab === 'active' && (
+          <div className="mt-4">
+            {activeRooms.length === 0 ? (
+              <div className="text-center py-10 px-4 rounded-2xl bg-slate-950/40 border border-slate-800/80">
+                <Radio className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+                <h3 className="text-sm font-bold text-slate-300">Tidak Ada Room yang Sedang Aktif</h3>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+                  Saat ini tidak ada sesi kuis yang berjalan. Tekan tombol &quot;Buat Live Room&quot; di atas untuk meluncurkan turnamen kelas baru.
+                </p>
+                <button
+                  onClick={handleOpenCreateModal}
+                  className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 text-slate-950 font-bold text-xs shadow-md transition-all hover:scale-105"
+                >
+                  <Trophy className="w-4 h-4" />
+                  Mulai Turnamen Baru
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                {activeRooms.map((r) => {
+                  const playerCount = Object.keys(r.players || {}).length;
+                  let statusText = 'Di Lobby';
+                  let statusBg = 'bg-slate-800 text-slate-300 border-slate-700';
+
+                  if (r.status === 'in-progress') {
+                    statusText = 'Sedang Balapan';
+                    statusBg = 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40';
+                  } else if (r.status === 'countdown') {
+                    statusText = 'Hitung Mundur';
+                    statusBg = 'bg-amber-500/20 text-amber-400 border-amber-500/40';
+                  } else if (r.status === 'round-ended') {
+                    statusText = 'Akhir Ronde';
+                    statusBg = 'bg-purple-500/20 text-purple-400 border-purple-500/40';
+                  }
+
+                  return (
+                    <div
+                      key={r.pin}
+                      className="flex flex-col justify-between p-4 rounded-2xl bg-slate-950/70 border border-slate-800 hover:border-slate-700 transition-all shadow-md"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-mono text-base font-black text-amber-400 tracking-wider bg-slate-900 px-2.5 py-0.5 rounded-lg border border-amber-500/30">
+                              #{r.pin}
+                            </span>
+                            <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-md border ${statusBg}`}>
+                              {statusText}
+                            </span>
+                          </div>
+                          <h3 className="font-bold text-white text-sm line-clamp-1">{r.title}</h3>
+                          <div className="flex items-center gap-3 text-xs text-slate-400 mt-1">
+                            <span className="flex items-center gap-1">
+                              <Users className="w-3.5 h-3.5 text-indigo-400" />
+                              {playerCount} Siswa
+                            </span>
+                            <span>•</span>
+                            <span>Ronde {r.currentRoundIndex + 1} dari {r.rounds.length}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-3 mt-3 border-t border-slate-800/80">
+                        <button
+                          onClick={() => handleDeleteRoom(r.pin, false)}
+                          className="text-slate-500 hover:text-rose-400 text-xs font-semibold px-2 py-1 rounded-lg hover:bg-rose-500/10 transition-colors"
+                          title="Tutup Sesi Room"
+                        >
+                          Tutup Room
+                        </button>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => exportRoomSpreadsheet(r, 'xlsx')}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 hover:text-emerald-300 font-semibold text-xs border border-emerald-500/20 transition-all hover:scale-105"
+                            title="Unduh Rekap Nilai Peserta (.xlsx)"
+                          >
+                            <FileSpreadsheet className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Unduh Rekap</span>
+                          </button>
+
+                          <Link
+                            href={`/teacher/host/${r.pin}`}
+                            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-md shadow-purple-600/30 transition-all hover:scale-105"
+                          >
+                            <span>Buka Layar Host</span>
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* --- TAB 2: RIWAYAT ROOM PERNAH DIBUAT (SELESAI / PODIUM) --- */}
+        {roomSectionTab === 'history' && (
+          <div className="mt-4">
+            {pastRooms.length === 0 ? (
+              <div className="text-center py-10 px-4 rounded-2xl bg-slate-950/40 border border-slate-800/80">
+                <History className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+                <h3 className="text-sm font-bold text-slate-300">Belum Ada Riwayat Room yang Selesai</h3>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+                  Setiap sesi turnamen kelas yang telah diselesaikan (mencapai podium juara) akan otomatis terarsip di sini lengkap dengan data penilaian siswa yang dapat diunduh kapan saja.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                {pastRooms.map((r) => {
+                  const players = Object.values(r.players || {});
+                  const sortedPlayers = [...players].sort((a, b) => (b.score || 0) - (a.score || 0));
+                  const winner = sortedPlayers[0];
+
+                  const dateStr = r.createdAt
+                    ? new Date(r.createdAt).toLocaleDateString('id-ID', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })
+                    : 'Waktu Tidak Tercatat';
+
+                  return (
+                    <div
+                      key={r.pin}
+                      className="flex flex-col justify-between p-4 rounded-2xl bg-slate-950/70 border border-slate-800 hover:border-slate-700 transition-all shadow-md"
+                    >
+                      <div>
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-base font-black text-amber-400 bg-slate-900 px-2.5 py-0.5 rounded-lg border border-amber-500/30">
+                              #{r.pin}
+                            </span>
+                            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md border bg-amber-500/10 text-amber-300 border-amber-500/30 flex items-center gap-1">
+                              <Award className="w-3 h-3 text-amber-400" /> Selesai
+                            </span>
+                          </div>
+
+                          <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                            <Clock className="w-3 h-3 text-slate-500" />
+                            {dateStr}
+                          </span>
+                        </div>
+
+                        <h3 className="font-bold text-white text-sm line-clamp-1">{r.title}</h3>
+
+                        <div className="flex items-center gap-3 text-xs text-slate-400 mt-1">
+                          <span className="flex items-center gap-1">
+                            <Users className="w-3.5 h-3.5 text-indigo-400" />
+                            {players.length} Peserta
+                          </span>
+                          <span>•</span>
+                          <span>{r.rounds.length} Babak</span>
+                          {winner && (
+                            <>
+                              <span>•</span>
+                              <span className="text-amber-400 font-semibold truncate max-w-[150px]">
+                                👑 {winner.name} ({winner.score || 0} Pts)
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-3 mt-3 border-t border-slate-800/80">
+                        <button
+                          onClick={() => handleDeleteRoom(r.pin, true)}
+                          className="text-slate-500 hover:text-rose-400 text-xs font-semibold p-1.5 rounded-lg hover:bg-rose-500/10 transition-colors"
+                          title="Hapus Arsip Riwayat"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => exportRoomSpreadsheet(r, 'xlsx')}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition-all hover:scale-105"
+                            title="Unduh Rekap Nilai Format Excel (.xlsx)"
+                          >
+                            <FileSpreadsheet className="w-3.5 h-3.5" />
+                            <span>Unduh Rekap (.xlsx)</span>
+                          </button>
+
+                          <Link
+                            href={`/teacher/host/${r.pin}`}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs border border-slate-700 transition-colors"
+                            title="Buka Layar Podium"
+                          >
+                            <span>Lihat Skor</span>
+                            <ArrowRight className="w-3 h-3" />
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Tabs Switcher */}
       <div className="flex items-center gap-3 my-6">

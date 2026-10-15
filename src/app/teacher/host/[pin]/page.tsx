@@ -58,23 +58,23 @@ export default function TeacherHostPage() {
   };
 
   // Mulai kuis: trigger countdown 3 detik lalu mulai
-  const handleStartGame = () => {
+  const handleStartGame = async () => {
     if (!managerRef.current || !room) return;
 
-    managerRef.current.setRoomStatus('countdown');
+    await managerRef.current.setRoomStatus('countdown');
 
     // Countdown 3 detik
-    setTimeout(() => {
+    setTimeout(async () => {
       if (managerRef.current) {
-        managerRef.current.setRoomStatus('in-progress');
+        await managerRef.current.setRoomStatus('in-progress');
       }
     }, 3000);
   };
 
   // Akhiri ronde secara manual
-  const handleEndRound = () => {
+  const handleEndRound = async () => {
     if (!managerRef.current) return;
-    managerRef.current.setRoomStatus('round-ended');
+    await managerRef.current.setRoomStatus('round-ended');
   };
 
   // Lanjut ke ronde berikutnya
@@ -85,9 +85,9 @@ export default function TeacherHostPage() {
     } else {
       await managerRef.current.nextRound();
       // Countdown 3 detik otomatis untuk ronde baru
-      setTimeout(() => {
+      setTimeout(async () => {
         if (managerRef.current) {
-          managerRef.current.setRoomStatus('in-progress');
+          await managerRef.current.setRoomStatus('in-progress');
         }
       }, 3000);
     }

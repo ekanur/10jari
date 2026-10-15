@@ -161,12 +161,23 @@ export function updateServerPlayer(pin: string, player: PlayerState): LiveRoom |
   return room;
 }
 
+export function getAllServerRooms(): LiveRoom[] {
+  const rooms = readAllRooms();
+  return Object.values(rooms).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+}
+
 export function getActiveServerRooms(): LiveRoom[] {
   const rooms = readAllRooms();
-  const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
   return Object.values(rooms)
-    .filter((r) => r.createdAt > oneDayAgo && r.status !== 'podium')
-    .sort((a, b) => b.createdAt - a.createdAt);
+    .filter((r) => r.status !== 'podium')
+    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+}
+
+export function getPastServerRooms(): LiveRoom[] {
+  const rooms = readAllRooms();
+  return Object.values(rooms)
+    .filter((r) => r.status === 'podium')
+    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 }
 
 export function deleteServerRoom(pin: string): boolean {

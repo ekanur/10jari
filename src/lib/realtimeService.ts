@@ -32,10 +32,10 @@ export class RoomManager {
       // 3. Server-Sent Events (SSE) untuk sinkronisasi antar browser & perangkat
       this.initSSE();
 
-      // 4. Polling fallback jika SSE tidak didukung / terputus
+      // 4. Polling fallback jika SSE tidak didukung / terputus (1 detik)
       this.pollInterval = setInterval(() => {
         this.fetchServerRoom();
-      }, 1500);
+      }, 1000);
 
       // Ambil data pertama dari server segera
       this.fetchServerRoom();
@@ -94,9 +94,40 @@ export class RoomManager {
   }
 
   private updateLocalRoom(room: LiveRoom) {
+    if (!room) return;
+
+    // MONOTONIC STATE GUARD:
+    // Mencegah rollback ronde (misal: jika ada data tertunda yang memundurkan ronde)
+    if (this.currentRoom) {
+      if (room.currentRoundIndex < this.currentRoom.currentRoundIndex) {
+        return;
+      }
+
+      // Dalam ronde yang sama, cegah kemunduran alur status
+      const statusWeight: Record<RoomStatus, number> = {
+        lobby: 0,
+        countdown: 1,
+        'in-progress': 2,
+        'round-ended': 3,
+        podium: 4,
+      };
+
+      if (
+        room.currentRoundIndex === this.currentRoom.currentRoundIndex &&
+        statusWeight[room.status] < statusWeight[this.currentRoom.status]
+      ) {
+        // Jangan izinkan rollback status pada ronde yang sama
+        return;
+      }
+    }
+
     this.currentRoom = room;
     if (typeof window !== 'undefined') {
-      localStorage.setItem(`${ROOM_STORAGE_PREFIX}${this.pin}`, JSON.stringify(room));
+      try {
+        localStorage.setItem(`${ROOM_STORAGE_PREFIX}${this.pin}`, JSON.stringify(room));
+      } catch {
+        // ignore
+      }
     }
     this.notify(room);
   }
@@ -149,9 +180,16 @@ export class RoomManager {
     completed: boolean,
     roundIndex?: number
   ): Promise<void> {
-    // 1. Optimistic local update
-    const room = this.getRoom();
-    if (room && room.players[playerId]) {
+    const room = this.currentRoom;
+    if (!room) return;
+
+    // PENTING: Jika ronde sudah berganti di lokal/server, abaikan ketikan dari ronde lama!
+    if (typeof roundIndex === 'number' && roundIndex !== room.currentRoundIndex) {
+      return;
+    }
+
+    // 1. Optimistic in-memory update HANYA untuk pemain ini (jangan timpa ronde ke localStorage)
+    if (room.players[playerId]) {
       const isFirstCompletion = completed && !room.players[playerId].completed;
 
       room.players[playerId].progress = progress;
@@ -180,7 +218,8 @@ export class RoomManager {
           scoreEarned: roundScore,
         };
       }
-      this.updateLocalRoom(room);
+
+      this.notify(room);
     }
 
     // 2. Kirim ke server
@@ -203,11 +242,15 @@ export class RoomManager {
     }
 
     try {
-      await fetch(`/api/rooms/${this.pin}`, {
+      const res = await fetch(`/api/rooms/${this.pin}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'status', status }),
       });
+      const data = await res.json();
+      if (data.success && data.room) {
+        this.updateLocalRoom(data.room);
+      }
     } catch {
       // ignore
     }

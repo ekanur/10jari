@@ -50,7 +50,7 @@ function StudentRaceScreen({ room, roundIndex, playerId, manager }: StudentRaceS
 
   // Broadcast progress mengetik siswa secara berkala ke server
   useEffect(() => {
-    if (!manager || !playerId || room.status !== 'in-progress') return;
+    if (!manager || !playerId || room.status !== 'in-progress' || roundIndex !== room.currentRoundIndex) return;
 
     manager.updatePlayerProgress(
       playerId,
@@ -61,7 +61,7 @@ function StudentRaceScreen({ room, roundIndex, playerId, manager }: StudentRaceS
       isFinished,
       roundIndex
     );
-  }, [manager, playerId, progressPercentage, stats.wpm, stats.netWpm, stats.accuracy, isFinished, roundIndex, room.status]);
+  }, [manager, playerId, progressPercentage, stats.wpm, stats.netWpm, stats.accuracy, isFinished, roundIndex, room.status, room.currentRoundIndex]);
 
   // Styling badge ranking
   let rankColor = 'bg-slate-800 text-slate-300 border-slate-700';
