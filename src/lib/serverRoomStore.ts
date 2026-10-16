@@ -145,17 +145,49 @@ export function removeSSEClient(pin: string, clientId: string) {
   }
 }
 
+const VALID_AVATARS = new Set([
+  'fox', 'cat', 'panda', 'rabbit', 'koala', 'tiger', 'bear', 'lion',
+  'monkey', 'owl', 'dog', 'penguin', 'frog', 'unicorn', 'dragon', 'robot',
+]);
+
+const MAX_REALISTIC_WPM = 220;
+
 export function updateServerPlayer(pin: string, player: PlayerState): LiveRoom | null {
   const rooms = readAllRooms();
-  let room = rooms[pin];
+  const room = rooms[pin];
 
+  // Hanya izinkan bergabung ke room yang benar-benar telah dibuat oleh Guru
   if (!room) {
-    // Jika room belum ada, inisialisasi dengan default rounds
-    room = createServerRoom('Ruang Latihan', 'Guru', DEFAULT_FALLBACK_ROUNDS, pin);
-    rooms[pin] = room;
+    return null;
   }
 
-  room.players[player.id] = player;
+  const cleanId = String(player?.id || '').trim().slice(0, 48);
+  const cleanName = String(player?.name || 'Siswa')
+    .replace(/[<>]/g, '')
+    .trim()
+    .slice(0, 30);
+
+  if (!cleanId || !cleanName) {
+    return null;
+  }
+
+  const cleanAvatar = VALID_AVATARS.has(player?.avatar) ? player.avatar : 'fox';
+  const existingPlayer = room.players[cleanId];
+
+  // Cegah manipulasi skor dari paket join (pertahankan skor asli di server atau mulai dari 0)
+  room.players[cleanId] = {
+    id: cleanId,
+    name: cleanName,
+    avatar: cleanAvatar,
+    progress: existingPlayer ? existingPlayer.progress : 0,
+    currentWpm: existingPlayer ? existingPlayer.currentWpm : 0,
+    netWpm: existingPlayer ? existingPlayer.netWpm : 0,
+    accuracy: existingPlayer ? existingPlayer.accuracy : 100,
+    completed: existingPlayer ? existingPlayer.completed : false,
+    score: existingPlayer ? existingPlayer.score : 0,
+    roundHistory: existingPlayer?.roundHistory || {},
+  };
+
   writeAllRooms(rooms);
   broadcastRoomUpdate(pin, room);
   return room;
@@ -212,22 +244,37 @@ export function updateServerPlayerProgress(
   const room = rooms[pin];
   if (!room) return null;
 
+  // Tolak update progres jika ronde sedang tidak berlangsung (in-progress)
+  if (room.status !== 'in-progress') {
+    return room;
+  }
+
   // Abaikan pembaruan paket yang tertunda jika berasal dari ronde lama
   if (typeof roundIndex === 'number' && roundIndex !== room.currentRoundIndex) {
     return room;
   }
 
   if (room.players[playerId]) {
-    const isFirstCompletion = completed && !room.players[playerId].completed;
+    // Anti-Cheat & Sanitasi nilai numerik
+    const safeProgress = Math.max(0, Math.min(100, Math.round(Number(progress) || 0)));
+    const safeAccuracy = Math.max(0, Math.min(100, Math.round(Number(accuracy) || 0)));
+    const safeCurrentWpm = Math.max(0, Math.min(MAX_REALISTIC_WPM, Math.round(Number(currentWpm) || 0)));
+    const safeNetWpm = Math.max(
+      0,
+      Math.min(safeCurrentWpm, Math.round(safeCurrentWpm * (safeAccuracy / 100)), Math.round(Number(netWpm) || 0))
+    );
+    const safeCompleted = Boolean(completed) && safeProgress >= 100;
 
-    room.players[playerId].progress = progress;
-    room.players[playerId].currentWpm = currentWpm;
-    room.players[playerId].netWpm = netWpm;
-    room.players[playerId].accuracy = accuracy;
-    room.players[playerId].completed = completed;
+    const isFirstCompletion = safeCompleted && !room.players[playerId].completed;
+
+    room.players[playerId].progress = safeProgress;
+    room.players[playerId].currentWpm = safeCurrentWpm;
+    room.players[playerId].netWpm = safeNetWpm;
+    room.players[playerId].accuracy = safeAccuracy;
+    room.players[playerId].completed = safeCompleted;
 
     if (isFirstCompletion) {
-      const roundScore = Math.round(netWpm * 10 * (accuracy / 100) * (progress / 100));
+      const roundScore = Math.round(safeNetWpm * 10 * (safeAccuracy / 100) * (safeProgress / 100));
       room.players[playerId].score = (room.players[playerId].score || 0) + roundScore;
 
       const currentRound = room.rounds[room.currentRoundIndex];
@@ -238,10 +285,10 @@ export function updateServerPlayerProgress(
         roundIndex: room.currentRoundIndex,
         roundTitle: currentRound?.title || `Ronde ${room.currentRoundIndex + 1}`,
         category: currentRound?.category,
-        netWpm,
-        currentWpm,
-        accuracy,
-        progress,
+        netWpm: safeNetWpm,
+        currentWpm: safeCurrentWpm,
+        accuracy: safeAccuracy,
+        progress: safeProgress,
         completed: true,
         scoreEarned: roundScore,
       };
